@@ -1,0 +1,172 @@
+<div class="flex min-h-screen flex-col bg-[#f5f5f5]">
+
+  <!-- ============ Global app header (same as admin-dashboard) ============ -->
+  <header class="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-4 bg-[#f5f5f5] px-4 sm:px-6">
+
+    <!-- Brand mark -->
+    <a routerLink="/super-admin-dashboard" class="flex shrink-0 items-center gap-2" aria-label="Go to dashboard home">
+      <img
+        src="/imgcomponent/Vativa%20logo.png"
+        alt="VativaHub"
+        class="h-9 w-9 shrink-0 object-contain"
+      />
+      <span class="hidden leading-tight sm:block">
+        <span class="block text-sm font-bold tracking-wide text-[#2f2f2f]">VATIVAHUB</span>
+        <span class="block text-[9px] uppercase tracking-wider text-neutral-400">Global Development</span>
+      </span>
+    </a>
+
+    <!-- Everything else lives on the right: search, then the icon actions, then account -->
+    <div class="ml-auto flex items-center gap-3">
+      <!-- Global search -->
+      <label class="hidden h-10 w-56 shrink-0 items-center rounded-lg border border-neutral-200 bg-white px-4 text-xs sm:flex md:w-64 lg:w-72">
+        <svg viewBox="0 0 24 24" class="mr-2 h-4 w-4 shrink-0 fill-none stroke-[#999]" stroke-width="1.8" aria-hidden="true">
+          <circle cx="11" cy="11" r="7" />
+          <path d="m20 20-4-4" />
+        </svg>
+        <input
+          #globalSearchInput
+          class="w-full bg-transparent outline-none placeholder:text-neutral-400"
+          type="search"
+          placeholder="Search"
+          aria-label="Search"
+          (keyup.enter)="onGlobalSearch(globalSearchInput.value)"
+        />
+      </label>
+
+      <!-- Notifications -->
+      <button
+        type="button"
+        class="relative grid h-9 w-9 place-items-center rounded-full text-neutral-500 transition hover:bg-black/5 hover:text-[#3e8d99]"
+        aria-label="Notifications"
+        title="Notifications"
+        (click)="openNotifications()"
+      >
+        <svg viewBox="0 0 24 24" class="h-[18px] w-[18px] fill-none stroke-current" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
+          <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+        </svg>
+        @if (unreadNotifications() > 0) {
+          <span class="absolute right-1 top-1 grid h-4 min-w-4 place-items-center rounded-full bg-red-500 px-1 text-[9px] font-semibold text-white" aria-hidden="true">
+            {{ unreadNotifications() > 9 ? '9+' : unreadNotifications() }}
+          </span>
+        }
+      </button>
+
+      <!-- Messages -->
+      <button
+        type="button"
+        class="grid h-9 w-9 place-items-center rounded-full text-neutral-500 transition hover:bg-black/5 hover:text-[#3e8d99]"
+        aria-label="Messages"
+        title="Messages"
+        (click)="openMessages()"
+      >
+        <svg viewBox="0 0 24 24" class="h-[18px] w-[18px] fill-none stroke-current" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+        </svg>
+      </button>
+
+      <!-- Settings -->
+      <button
+        type="button"
+        class="grid h-9 w-9 place-items-center rounded-full text-neutral-500 transition hover:bg-black/5 hover:text-[#3e8d99]"
+        aria-label="Settings"
+        title="Settings"
+        (click)="openSettings()"
+      >
+        <svg viewBox="0 0 24 24" class="h-[18px] w-[18px] fill-none stroke-current" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+          <circle cx="12" cy="12" r="3" />
+        </svg>
+      </button>
+
+      <span class="mx-1 h-6 w-px bg-neutral-200" aria-hidden="true"></span>
+
+      <!-- Account menu -->
+      <div class="relative" (click)="$event.stopPropagation()">
+        <button
+          type="button"
+          class="flex items-center gap-2 rounded-full py-1 pl-1 pr-3 transition hover:bg-black/5"
+          aria-haspopup="menu"
+          [attr.aria-expanded]="accountMenuOpen()"
+          (click)="accountMenuOpen.set(!accountMenuOpen())"
+        >
+          <span class="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-gradient-to-br from-[#62b9c8] to-[#324f65] text-[11px] font-semibold text-white">
+            {{ initials() }}
+          </span>
+          <span class="hidden text-sm font-medium text-[#333] sm:inline">{{ headerName() }}</span>
+          <svg viewBox="0 0 24 24" class="hidden h-3.5 w-3.5 fill-none stroke-neutral-400 sm:block" stroke-width="2.4" aria-hidden="true">
+            <path d="m6 9 6 6 6-6" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </button>
+
+        @if (accountMenuOpen()) {
+          <div
+            class="absolute right-0 top-12 w-48 overflow-hidden rounded-xl bg-white py-1 shadow-[0_14px_25px_rgba(0,0,0,.15)] ring-1 ring-black/5"
+            role="menu"
+          >
+            <div class="border-b border-neutral-100 px-4 py-2.5">
+              <p class="truncate text-xs font-semibold text-[#333]">{{ displayName() }}</p>
+              <p class="truncate text-[11px] text-neutral-400">{{ roleLabel() }}</p>
+            </div>
+            <a
+              routerLink="/super-admin-dashboard/profile"
+              role="menuitem"
+              class="block w-full px-4 py-2.5 text-xs text-[#555] transition hover:bg-[#f6f6f6]"
+              (click)="closeAccountMenu()"
+            >
+              Change password
+            </a>
+            <button
+              type="button"
+              role="menuitem"
+              class="block w-full px-4 py-2.5 text-left text-xs text-[#555] transition hover:bg-[#f6f6f6]"
+              (click)="logout()"
+            >
+              Log out
+            </button>
+          </div>
+        }
+      </div>
+    </div>
+  </header>
+
+  <!-- ============ Sidebar + routed page content ============ -->
+  <div class="relative flex-1">
+    <!-- Decorative curved background shape -->
+    <aside
+      class="pointer-events-none fixed left-0 top-16 z-0 hidden h-[calc(100vh-4rem)] w-[clamp(48px,4.5vw,84px)] text-[#5abacb] sm:block"
+      aria-hidden="true"
+    >
+      <svg class="h-full w-full" viewBox="0 0 140 1000" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M0 130 C12 145 25 150 42 150 C98 150 140 200 140 260 L140 740 C140 800 98 850 42 850 C25 850 12 855 0 870 Z" fill="currentColor"></path>
+      </svg>
+    </aside>
+
+    <!-- Icon nav, placed on top of the curve -->
+    <!-- Super Admin only manages Packages, so this is the ONLY item here -->
+    <nav
+      class="fixed left-0 top-16 z-10 hidden h-[calc(100vh-4rem)] w-[clamp(48px,4.5vw,84px)] flex-col items-center justify-center gap-8 sm:flex"
+    >
+      <!-- Package Management -->
+      <a
+        routerLink="package"
+        routerLinkActive="text-white"
+        class="group flex flex-col items-center gap-1 text-white/90 transition hover:text-white"
+        title="Package Management"
+      >
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="m7.5 4.27 9 5.15"></path>
+          <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"></path>
+          <path d="m3.3 7 8.7 5 8.7-5"></path>
+          <path d="M12 22V12"></path>
+        </svg>
+        <span class="text-[10px] leading-tight">Package</span>
+      </a>
+    </nav>
+
+    <main class="min-h-[calc(100vh-4rem)] bg-[#f5f5f5] pl-0 pt-2 sm:pl-[clamp(48px,4.5vw,84px)]">
+      <router-outlet></router-outlet>
+    </main>
+  </div>
+</div>

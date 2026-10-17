@@ -1,0 +1,350 @@
+<div class="relative w-full font-sans text-[#505050]">
+
+  <main class="relative px-5 pb-6 pt-2 md:px-10">
+    <div class="flex items-center gap-4">
+      <label class="flex h-11 w-[180px] items-center rounded-full bg-white px-6 text-xs">
+        <input #searchBox class="w-full border-0 bg-transparent outline-none" type="search" placeholder="Search in list" (input)="onSearch(searchBox.value)" />
+      </label>
+      <label class="flex h-11 w-[180px] items-center justify-center gap-3 rounded-full bg-white px-6 text-xs">
+        <span>Filter</span>
+        <select #filterSelect (change)="onFilter($any(filterSelect.value))" class="border-0 bg-transparent outline-none" aria-label="Filter by status">
+          <option value="All">All</option><option value="Active">Active</option><option value="Inactive">Inactive</option>
+        </select>
+      </label>
+
+      <div class="ml-auto flex items-center gap-3">
+        <button type="button" (click)="openAssignPackagePicker()" class="h-9 rounded-full bg-white px-6 text-[11px] transition-all duration-200 hover:bg-[#3f96a6] hover:text-white hover:ring-1 hover:ring-[#91e2ed] cursor-pointer">Update Package</button>
+        <button type="button" (click)="openCreateDialog()" class="h-9 rounded-full bg-white px-6 text-[11px] transition-all duration-200 hover:bg-[#3f96a6] hover:text-white hover:ring-1 hover:ring-[#91e2ed] cursor-pointer">+ Create Package</button>
+      </div>
+    </div>
+
+    @if (successMessage()) { <div class="fixed right-8 top-24 z-50 rounded-xl bg-[#61b7c5] px-5 py-3 text-sm text-white shadow-lg" role="status">{{ successMessage() }}</div> }
+
+    <section class="mt-6 overflow-hidden rounded-2xl bg-white">
+      @if (loading()) {
+        <div class="grid min-h-[590px] place-items-center text-sm text-[#888]">Loading admin list…</div>
+      } @else if (loadError()) {
+        <div class="flex min-h-[590px] flex-col items-center justify-center gap-4 text-sm">
+          <p>{{ loadError() }}</p>
+          <button type="button" (click)="loadPackages()" class="rounded-full bg-[#61b7c5] px-5 py-2 text-white">Try again</button>
+        </div>
+      } @else if (!filteredRows().length) {
+        <div class="flex min-h-[590px] flex-col items-center justify-center text-sm text-[#777]">
+          <h1 class="text-lg font-semibold text-[#555]">No admins found</h1>
+          <p class="mt-2">Try adjusting your search or filter.</p>
+        </div>
+      } @else {
+        <div class="overflow-x-auto">
+          <table class="w-full min-w-[900px] border-collapse text-left text-xs">
+            <thead>
+              <tr class="border-b border-[#ededed]">
+                <th class="px-11 py-7 font-semibold">Username</th>
+                <th class="px-7 py-7 font-semibold">Role</th>
+                <th class="px-7 py-7 font-semibold">Email</th>
+                <th class="px-7 py-7 font-semibold">Package</th>
+                <th class="px-7 py-7 font-semibold">Price</th>
+                <th class="px-7 py-7 font-semibold">Billing Cycle</th>
+                <th class="px-7 py-7 font-semibold">Status</th>
+                 <!-- Row actions are grouped here; package actions require an assigned package. -->
+                <th class="w-[220px] px-7 py-7 text-right font-semibold">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of filteredRows(); track row.admin.id) {
+                <tr class="group relative border-b border-[#f1f1f1]">
+                  <td class="px-11 py-5 font-semibold">{{ row.admin.username }}</td>
+                  <td class="px-7 py-5">{{ row.admin.role }}</td>
+                  <td class="px-7 py-5">{{ row.admin.email }}</td>
+                  <td class="px-7 py-5">{{ row.package?.name ?? '—' }}</td>
+                  <td class="px-7 py-5">{{ row.package ? (row.package.price | currency) : '—' }}</td>
+                  <td class="px-7 py-5">{{ row.package?.billingCycle ?? '—' }}</td>
+                  <td class="px-7 py-5">{{ row.admin.status }}</td>
+                  <td class="relative w-[220px] px-7 py-5">
+
+                    <div class="relative flex justify-end">
+                      @if (openActionMenuId() === row.admin.id) {
+                        <div
+                          class="absolute right-8 top-1/2 z-20 flex -translate-y-1/2 items-center gap-1.5 rounded-full bg-white p-1.5 shadow-[0_8px_24px_rgba(0,0,0,.15)] cursor-pointer"
+                          (click)="$event.stopPropagation()"
+                        >
+                          <button
+                            type="button"
+                            (click)="openViewPackage(row.package, $event)"
+                            [disabled]="!row.package"
+                            aria-label="View package"
+                            [title]="row.package ? 'View package' : 'No package assigned'"
+                            class="flex h-8 w-8 items-center justify-center rounded-full bg-[#f2f2f2] text-[#555] transition hover:bg-[#61b7c5] hover:text-white disabled:cursor-not-allowed disabled:text-[#c2c2c2] disabled:hover:bg-[#f2f2f2] disabled:hover:text-[#c2c2c2]"
+                          >
+                            <svg viewBox="0 0 24 24" fill="none" class="h-4 w-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                              <path d="M1.5 12S5 5 12 5s10.5 7 10.5 7-3.5 7-10.5 7S1.5 12 1.5 12Z" />
+                              <circle cx="12" cy="12" r="3" />
+                            </svg>
+                          </button>
+
+                          <button
+                            type="button"
+                            (click)="openEditPackage(row.package, $event)"
+                            [disabled]="!row.package || editSubmitting()"
+                            aria-label="Edit package"
+                            [title]="row.package ? 'Edit package' : 'No package assigned'"
+                            class="flex h-8 w-8 items-center justify-center rounded-full bg-[#f2f2f2] text-[#555] transition hover:bg-[#61b7c5] hover:text-white disabled:cursor-not-allowed disabled:text-[#c2c2c2] disabled:hover:bg-[#f2f2f2] disabled:hover:text-[#c2c2c2]"
+                          >
+                            <svg viewBox="0 0 24 24" fill="none" class="h-4 w-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                              <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                            </svg>
+                          </button>
+
+                          <button
+                            type="button"
+                            (click)="row.package && deletePackageFromMenu(row.package, $event)"
+                            [disabled]="!row.package || deletingPackageId() === row.package.id"
+                            aria-label="Delete package"
+                            title="Delete"
+                            class="flex h-8 w-8 items-center justify-center rounded-full bg-[#e6f6f4] text-[#2f9e8f] transition hover:bg-[#2f9e8f] hover:text-white disabled:cursor-not-allowed disabled:bg-[#f2f2f2] disabled:text-[#c2c2c2] disabled:hover:bg-[#f2f2f2] disabled:hover:text-[#c2c2c2]"
+                          >
+                            <svg viewBox="0 0 24 24" fill="none" class="h-4 w-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                              <path d="M4 7h16" />
+                              <path d="M9 7V4.5A1.5 1.5 0 0 1 10.5 3h3A1.5 1.5 0 0 1 15 4.5V7" />
+                              <path d="M6 7l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13" />
+                              <path d="M10 11v6M14 11v6" />
+                            </svg>
+                          </button>
+
+                          <button
+                            type="button"
+                            (click)="openAssignDialog(row.admin); closeActionMenu()"
+                            aria-label="Assign package"
+                            [title]="row.package ? 'Reassign' : 'Assign'"
+                            class="flex h-8 w-8 items-center justify-center rounded-full bg-[#eaf6fb] text-[#3f96a6] transition hover:bg-[#61b7c5] hover:text-white"
+                          >
+                            <svg viewBox="0 0 24 24" fill="none" class="h-4 w-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                              <path d="M12 5v14M5 12h14" />
+                            </svg>
+                          </button>
+                        </div>
+                      }
+
+                      <button
+                        type="button"
+                        (click)="toggleActionMenu(row.admin.id, $event)"
+                        aria-label="More actions"
+                        [attr.aria-expanded]="openActionMenuId() === row.admin.id"
+                        title="More"
+                        class="flex h-8 w-8 items-center justify-center rounded-full bg-[#eef2f2] text-[#8a8a8a] transition hover:bg-[#f4f8f8] hover:text-[#61b7c5]"
+                      >
+                        <svg viewBox="0 0 24 24" fill="currentColor" class="h-4 w-4">
+                          <circle cx="12" cy="5" r="1.6" />
+                          <circle cx="12" cy="12" r="1.6" />
+                          <circle cx="12" cy="19" r="1.6" />
+                        </svg>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        <footer class="px-11 py-6 text-xs">Showing {{ filteredRows().length }} of {{ totalElements() }} admins</footer>
+      }
+    </section>
+  </main>
+</div>
+
+<!-- Transparent full-screen backdrop: only present while a row's popover is open, so any outside click closes it. -->
+@if (openActionMenuId() !== null) {
+  <div class="fixed inset-0 z-10" (click)="closeActionMenu()"></div>
+}
+
+@if (createDialogOpen()) {
+  <app-create-package-modal [existingPackages]="packages()" (cancelled)="closeCreateDialog()" (next)="onCreateDetailsSubmitted($event)" />
+}
+
+<!--
+  assigningAdmin() is allowed to be null here (header-button entry has no
+  row context yet). The modal itself shows an admin search picker when
+  [admin]="null" and a readonly email when a row admin was passed in.
+-->
+@if (assignDialogOpen()) {
+  <app-assign-package-modal
+    [admin]="assigningAdmin()"
+    [admins]="admins()"
+    [packages]="packages()"
+    [loading]="packagesLoading()"
+    [submitting]="submitting()"
+    [serverError]="formError() || packagesLoadError()"
+    (cancelled)="closeAssignDialog()"
+    (retryLoadPackages)="retryLoadPackagesForDialogs()"
+    (saved)="onAssignSubmitted($event)" />
+}
+
+@if (viewingPackage(); as item) {
+  <div class="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-black/40 p-5" (click)="closeViewPackage()">
+    <section class="w-full max-w-2xl rounded-xl bg-white p-6 shadow-2xl sm:p-8" role="dialog" aria-modal="true" aria-labelledby="view-package-title" (click)="$event.stopPropagation()">
+      <div class="flex items-start justify-between gap-4">
+        <div>
+          <p class="text-xs font-medium uppercase text-[#438895]">Package details</p>
+          <h2 id="view-package-title" class="mt-1 text-xl font-semibold text-[#252b2d]">{{ item.name }}</h2>
+        </div>
+        <button type="button" class="grid h-9 w-9 shrink-0 place-items-center rounded-md text-xl text-neutral-600 hover:bg-neutral-100 focus-visible:outline-2 focus-visible:outline-[#28636e]" aria-label="Close package details" (click)="closeViewPackage()">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+
+      <dl class="mt-6 grid gap-x-8 gap-y-5 sm:grid-cols-2">
+        <div><dt class="text-xs font-medium text-neutral-500">Available package</dt><dd class="mt-1 text-sm text-neutral-900">{{ item.availablePackage }}</dd></div>
+        <div><dt class="text-xs font-medium text-neutral-500">Status</dt><dd class="mt-1 text-sm text-neutral-900">{{ item.status }}</dd></div>
+        <div><dt class="text-xs font-medium text-neutral-500">Price</dt><dd class="mt-1 text-sm text-neutral-900">{{ item.price | currency }} / {{ item.billingCycle }}</dd></div>
+        <div><dt class="text-xs font-medium text-neutral-500">User limit</dt><dd class="mt-1 text-sm text-neutral-900">{{ item.userLimit }}</dd></div>
+        <div><dt class="text-xs font-medium text-neutral-500">Storage limit</dt><dd class="mt-1 text-sm text-neutral-900">{{ item.storageLimit ?? 'No limit' }}</dd></div>
+        <div class="sm:col-span-2"><dt class="text-xs font-medium text-neutral-500">Description</dt><dd class="mt-1 whitespace-pre-wrap text-sm text-neutral-900">{{ item.description || 'No description' }}</dd></div>
+      </dl>
+
+      <div class="mt-6 border-t border-neutral-200 pt-5">
+        <h3 class="text-sm font-semibold text-[#252b2d]">Permissions</h3>
+        @if (item.permissions.length) {
+          <div class="mt-3 max-h-56 space-y-3 overflow-y-auto">
+            @for (category of item.permissions; track category.id) {
+              <section class="rounded-md bg-neutral-50 p-3">
+                <h4 class="text-xs font-semibold text-neutral-800">{{ category.name }}</h4>
+                <ul class="mt-2 space-y-1">
+                  @for (feature of category.features; track feature.id) {
+                    <li class="text-xs text-neutral-700">
+                      <span class="font-medium">{{ feature.name }}:</span>
+                      Create {{ feature.permissions.create ? 'Yes' : 'No' }},
+                      Read {{ feature.permissions.read ? 'Yes' : 'No' }},
+                      Update {{ feature.permissions.update ? 'Yes' : 'No' }},
+                      Delete {{ feature.permissions.delete ? 'Yes' : 'No' }}
+                    </li>
+                  }
+                </ul>
+              </section>
+            }
+          </div>
+        } @else {
+          <p class="mt-2 text-sm text-neutral-600">No permissions configured.</p>
+        }
+      </div>
+
+      <div class="mt-6 flex justify-end">
+        <button type="button" class="min-h-10 rounded-md bg-[#28636e] px-4 text-sm font-medium text-white hover:bg-[#1f515a] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#28636e]" (click)="closeViewPackage()">Close</button>
+      </div>
+    </section>
+  </div>
+}
+
+@if (editingPackage(); as item) {
+  <div class="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-black/25 p-5 backdrop-blur-[3px]" (click)="closeEditPackage()">
+    <section class="w-full max-w-[600px] rounded-2xl bg-white px-8 py-6 shadow-[0_12px_35px_rgba(0,0,0,.25)] 2xl:max-w-[720px] 2xl:rounded-[20px] 2xl:px-9 2xl:py-8" role="dialog" aria-modal="true" aria-labelledby="edit-package-title" (click)="$event.stopPropagation()">
+      <div class="flex items-start justify-between gap-4">
+        <div>
+          <h2 id="edit-package-title" class="text-xl font-semibold text-[#505050] 2xl:text-[26px]">Edit package</h2>
+          <p class="mt-1.5 text-xs text-[#606060] 2xl:mt-2 2xl:text-[14px]">Update package details and limits for {{ item.name }}.</p>
+        </div>
+        <button type="button" class="grid h-9 w-9 shrink-0 place-items-center rounded-md text-xl text-neutral-600 hover:bg-neutral-100 focus-visible:outline-2 focus-visible:outline-[#28636e] disabled:opacity-50" aria-label="Close edit package" [disabled]="editSubmitting()" (click)="closeEditPackage()">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+
+      <form class="mt-5 2xl:mt-7" [formGroup]="editForm" (ngSubmit)="savePackageEdits()" novalidate>
+        <div class="grid grid-cols-[1.3fr_1fr] gap-5">
+          <div class="relative">
+            <label for="edit-package-name" class="sr-only">Package name</label>
+            <input id="edit-package-name" formControlName="name" minlength="3" maxlength="100" placeholder="Package Name*" class="h-12 w-full rounded-lg border-0 bg-[#f6f6f6] px-4 text-xs outline-none placeholder:text-[#555] 2xl:h-[62px] 2xl:rounded-xl 2xl:px-5 2xl:text-sm" />
+            @if (editForm.controls.name.touched && editForm.controls.name.invalid) {
+              <p class="absolute left-1 top-full mt-0.5 text-[9px] text-red-600">Enter a unique name between 3 and 100 characters.</p>
+            }
+          </div>
+          <div class="relative">
+            <label for="edit-available-package" class="sr-only">Available package</label>
+            <select id="edit-available-package" formControlName="availablePackage" class="h-12 w-full rounded-lg border-0 bg-[#f6f6f6] px-4 text-xs outline-none 2xl:h-[62px] 2xl:rounded-xl 2xl:px-5 2xl:text-sm">
+              @for (option of availablePackageOptions; track option) { <option [value]="option">{{ option }}</option> }
+            </select>
+          </div>
+        </div>
+
+        <div class="relative mt-4 2xl:mt-5">
+          <label for="edit-package-description" class="sr-only">Package description</label>
+          <textarea id="edit-package-description" rows="5" placeholder="Package description" formControlName="description" class="h-[100px] w-full resize-none rounded-lg border-0 bg-[#f6f6f6] px-4 py-4 text-xs outline-none placeholder:text-[#555] 2xl:h-[138px] 2xl:rounded-xl 2xl:px-5 2xl:py-5 2xl:text-sm"></textarea>
+          <span class="absolute bottom-4 right-4 text-xs">Maximum words {{ editDescriptionWordCount() }}/500</span>
+          @if (editForm.controls.description.touched && editForm.controls.description.invalid) {
+            <p class="absolute left-1 top-full mt-0.5 text-[9px] text-red-600">Description must not exceed 500 words.</p>
+          }
+        </div>
+
+        <div class="mt-4 space-y-3 2xl:mt-5 2xl:space-y-5">
+          <div class="relative">
+            <label for="edit-package-price" class="sr-only">Price</label>
+            <input id="edit-package-price" type="number" min="0.01" step="0.01" placeholder="Price*" formControlName="price" class="h-12 w-full rounded-lg border-0 bg-[#f6f6f6] px-4 text-xs outline-none placeholder:text-[#555] 2xl:h-[62px] 2xl:rounded-xl 2xl:px-5 2xl:text-sm" />
+            @if (editForm.controls.price.touched && editForm.controls.price.invalid) { <p class="mt-1 text-[9px] text-red-600">Price must be greater than zero.</p> }
+          </div>
+          <div class="relative">
+            <label for="edit-billing-cycle" class="sr-only">Billing cycle</label>
+            <select id="edit-billing-cycle" formControlName="billingCycle" class="h-12 w-full rounded-lg border-0 bg-[#f6f6f6] px-4 text-xs outline-none 2xl:h-[62px] 2xl:rounded-xl 2xl:px-5 2xl:text-sm">
+              <option value="Monthly">Monthly</option><option value="Yearly">Yearly</option>
+            </select>
+          </div>
+          <div class="relative">
+            <label for="edit-user-limit" class="sr-only">User limit</label>
+            <input id="edit-user-limit" type="number" min="1" step="1" placeholder="User limits*" formControlName="userLimit" class="h-12 w-full rounded-lg border-0 bg-[#f6f6f6] px-4 text-xs outline-none placeholder:text-[#555] 2xl:h-[62px] 2xl:rounded-xl 2xl:px-5 2xl:text-sm" />
+            @if (editForm.controls.userLimit.touched && editForm.controls.userLimit.invalid) { <p class="mt-1 text-[9px] text-red-600">User limit must be 1 or greater.</p> }
+          </div>
+          <div class="relative">
+            <label for="edit-storage-limit" class="sr-only">Storage limit</label>
+            <input id="edit-storage-limit" type="number" min="0" step="1" placeholder="Storage limits" formControlName="storageLimit" class="h-12 w-full rounded-lg border-0 bg-[#f6f6f6] px-4 text-xs outline-none placeholder:text-[#555] 2xl:h-[62px] 2xl:rounded-xl 2xl:px-5 2xl:text-sm" />
+            @if (editForm.controls.storageLimit.touched && editForm.controls.storageLimit.invalid) { <p class="mt-1 text-[9px] text-red-600">Storage limit cannot be negative.</p> }
+          </div>
+        </div>
+
+        <section class="mt-5 border-t border-[#e8e8e8] pt-4" aria-labelledby="edit-package-permissions-title">
+          <h3 id="edit-package-permissions-title" class="text-xs font-semibold text-[#505050] 2xl:text-sm">Permissions</h3>
+          <div class="mt-3 grid grid-cols-[minmax(0,1fr)_repeat(4,minmax(42px,1fr))] items-center gap-2 border-b border-[#eeeeee] pb-2 text-center text-[10px] font-medium text-[#606060] 2xl:text-xs">
+            <span class="text-left">Feature</span>
+            @for (action of editPermissionActions; track action) { <span class="capitalize">{{ action }}</span> }
+          </div>
+          <div class="mt-2 max-h-52 space-y-3 overflow-y-auto">
+            @for (category of editingPermissions(); track category.id) {
+              <section>
+                <h4 class="mb-1 text-[10px] font-semibold text-[#606060] 2xl:text-xs">{{ category.name }}</h4>
+                @for (feature of category.features; track feature.id) {
+                  <div class="grid min-h-9 grid-cols-[minmax(0,1fr)_repeat(4,minmax(42px,1fr))] items-center gap-2 text-center">
+                    <span class="text-left text-[10px] text-[#505050] 2xl:text-xs">{{ feature.name }}</span>
+                    @for (action of editPermissionActions; track action) {
+                      <div class="flex justify-center">
+                        <button
+                          type="button"
+                          role="switch"
+                          [attr.aria-checked]="feature.permissions[action]"
+                          [attr.aria-label]="action + ' ' + feature.name"
+                          [disabled]="editSubmitting()"
+                          (click)="toggleEditPermission(category.id, feature.id, action)"
+                          [style.backgroundColor]="feature.permissions[action] ? '#61b7c5' : '#e9e9e9'"
+                          class="relative h-[19px] w-[49.48px] rounded-[35px] focus:outline-none focus:ring-2 focus:ring-[#61b7c5]/30 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          <span
+                            class="absolute top-1/2 h-[15px] w-[15px] -translate-y-1/2 rounded-full bg-white shadow transition-all duration-200"
+                            [style.left]="!feature.permissions[action] ? '2px' : 'auto'"
+                            [style.right]="feature.permissions[action] ? '2px' : 'auto'"
+                          ></span>
+                        </button>
+                      </div>
+                    }
+                  </div>
+                }
+              </section>
+            }
+          </div>
+        </section>
+
+        @if (formError()) { <p class="mt-4 text-right text-xs text-red-600" role="alert">{{ formError() }}</p> }
+
+        <div class="mt-5 flex justify-center gap-4 2xl:mt-7 2xl:gap-5">
+          <button type="button" class="h-11 w-40 rounded-lg bg-[#f6f6f6] text-xs disabled:opacity-50 2xl:h-[52px] 2xl:w-48 2xl:rounded-xl 2xl:text-sm" [disabled]="editSubmitting()" (click)="closeEditPackage()">Cancel</button>
+          <button type="submit" class="h-11 w-40 rounded-lg bg-[#f6f6f6] text-xs transition enabled:hover:bg-[#61b7c5] enabled:hover:text-white disabled:cursor-not-allowed disabled:opacity-50 2xl:h-[52px] 2xl:w-48 2xl:rounded-xl 2xl:text-sm" [disabled]="editSubmitting()">
+            {{ editSubmitting() ? 'Saving…' : 'Save changes' }}
+          </button>
+        </div>
+      </form>
+    </section>
+  </div>
+}
