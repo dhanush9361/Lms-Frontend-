@@ -165,6 +165,9 @@
             <div class="mt-16">
               <h2 class="text-[28px] font-bold leading-tight text-[#383838]">Welcome Back</h2>
               <p class="mt-4 text-[13px] text-[#343434]">Login to your account and continue</p>
+              @if (loginNotice()) {
+                <p class="mt-3 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-900" role="status">{{ loginNotice() }}</p>
+              }
             </div>
 
             <div class="mt-8 space-y-6">

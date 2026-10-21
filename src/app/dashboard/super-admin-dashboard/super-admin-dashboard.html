@@ -86,7 +86,8 @@
       <div class="relative" (click)="$event.stopPropagation()">
         <button
           type="button"
-          class="flex items-center gap-2 rounded-full py-1 pl-1 pr-3 transition hover:bg-black/5"
+          class="flex items-center gap-2 rounded-full bg-white py-1 pl-1 pr-3 shadow-[0_2px_5px_rgba(0,0,0,.18)] transition hover:bg-white"
+          [class.rounded-b-none]="accountMenuOpen()"
           aria-haspopup="menu"
           [attr.aria-expanded]="accountMenuOpen()"
           (click)="accountMenuOpen.set(!accountMenuOpen())"
@@ -102,25 +103,29 @@
 
         @if (accountMenuOpen()) {
           <div
-            class="absolute right-0 top-12 w-48 overflow-hidden rounded-xl bg-white py-1 shadow-[0_14px_25px_rgba(0,0,0,.15)] ring-1 ring-black/5"
+            class="absolute right-0 top-full w-full overflow-hidden rounded-b-3xl bg-white shadow-[0_3px_5px_rgba(0,0,0,.22)]"
             role="menu"
           >
-            <div class="border-b border-neutral-100 px-4 py-2.5">
-              <p class="truncate text-xs font-semibold text-[#333]">{{ displayName() }}</p>
-              <p class="truncate text-[11px] text-neutral-400">{{ roleLabel() }}</p>
-            </div>
             <a
               routerLink="/super-admin-dashboard/profile"
               role="menuitem"
-              class="block w-full px-4 py-2.5 text-xs text-[#555] transition hover:bg-[#f6f6f6]"
+              class="block w-full border-t border-[#ededed] px-3 py-2 text-center text-xs text-[#555] transition hover:bg-[#f6f6f6]"
               (click)="closeAccountMenu()"
             >
-              Change password
+              Change Password
             </a>
             <button
               type="button"
               role="menuitem"
-              class="block w-full px-4 py-2.5 text-left text-xs text-[#555] transition hover:bg-[#f6f6f6]"
+              class="block w-full border-t border-[#ededed] px-3 py-2 text-center text-xs text-[#555] transition hover:bg-[#f6f6f6]"
+              (click)="openSettings(); closeAccountMenu()"
+            >
+              Settings
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              class="block w-full border-t border-[#ededed] px-3 py-2 text-center text-xs text-[#555] transition hover:bg-[#f6f6f6]"
               (click)="logout()"
             >
               Log out

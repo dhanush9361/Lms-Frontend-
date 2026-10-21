@@ -170,9 +170,11 @@ export class PackageService {
 @Injectable({ providedIn: 'root' })
 export class PackageDraftService {
   private readonly _pendingPayload = signal<PackagePayload | null>(null);
+  private readonly _editingPackageId = signal<number | null>(null);
   private readonly _categories = signal<PackagePermissionCategory[]>([]);
 
   readonly pendingPayload = this._pendingPayload.asReadonly();
+  readonly editingPackageId = this._editingPackageId.asReadonly();
   readonly categories = this._categories.asReadonly();
   readonly hasDraft = computed(() => this._pendingPayload() !== null);
 
@@ -191,10 +193,27 @@ export class PackageDraftService {
   }
 
   startDraft(payload: PackagePayload): void {
+    this._editingPackageId.set(null);
     this._pendingPayload.set(payload);
+    this._categories.set([]);
+  }
+
+  startEditDraft(packageId: number, payload: PackagePayload): void {
+    this._editingPackageId.set(packageId);
+    this._pendingPayload.set(payload);
+    this._categories.set(
+      payload.permissions.map((category) => ({
+        ...category,
+        features: category.features.map((feature) => ({
+          ...feature,
+          permissions: { ...feature.permissions },
+        })),
+      })),
+    );
   }
 
   clearDraft(): void {
+    this._editingPackageId.set(null);
     this._pendingPayload.set(null);
     this._categories.set([]);
   }

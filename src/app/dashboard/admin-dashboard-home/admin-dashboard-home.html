@@ -1,1 +1,26 @@
-<p>admin-dashboard-home works!</p>
+<section class="mx-auto w-full max-w-6xl px-4 py-8 sm:px-8" aria-labelledby="dashboard-title">
+  <header class="mb-8">
+    <h1 id="dashboard-title" class="text-3xl font-semibold text-[#333]">Dashboard</h1>
+    <p class="mt-2 text-sm text-[#555]">Choose an area to manage.</p>
+  </header>
+
+  <div class="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+    <a
+      routerLink="/admin-dashboard/users"
+      class="group flex min-h-48 flex-col rounded-xl border border-neutral-200 bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:border-[#61b7c5] hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#26727d]"
+      aria-label="Users: open Bulk User Management"
+    >
+      <span class="grid size-12 place-items-center rounded-xl bg-[#e8f8fb] text-[#267d8a]" aria-hidden="true">
+        <svg viewBox="0 0 24 24" class="size-6 fill-none stroke-current" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+          <circle cx="10" cy="7" r="4"></circle>
+          <path d="M20 21v-2a4 4 0 0 0-3-3.87"></path>
+          <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+        </svg>
+      </span>
+      <span class="mt-5 text-lg font-semibold text-[#333]">Users</span>
+      <span class="mt-1 text-sm text-[#555]">Bulk User Management</span>
+      <span class="mt-auto pt-5 text-sm font-semibold text-[#267d8a] group-hover:underline">Open user management <span aria-hidden="true">→</span></span>
+    </a>
+  </div>
+</section>

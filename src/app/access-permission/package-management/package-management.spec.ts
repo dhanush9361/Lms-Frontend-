@@ -3,7 +3,7 @@ import { Router } from '@angular/router';
 import { of } from 'rxjs';
 
 import { AdminPage, AdminSummary, AuthService } from '../../services/auth';
-import { PackagePage, PackagePayload, PackageRecord, PackageService } from '../../services/package.service';
+import { PackageDraftService, PackagePage, PackageRecord, PackageService } from '../../services/package.service';
 import { PackageManagement } from './package-management';
 
 describe('PackageManagement', () => {
@@ -11,7 +11,8 @@ describe('PackageManagement', () => {
   let fixture: ComponentFixture<PackageManagement>;
   let packagesApi: PackageService;
   let storedPackage: PackageRecord;
-  let updatePayload: PackagePayload | undefined;
+  let draft: PackageDraftService;
+  let navigatedCommands: readonly unknown[] | undefined;
   const admin: AdminSummary = {
     id: 11,
     username: 'manager',
@@ -24,7 +25,7 @@ describe('PackageManagement', () => {
   };
 
   beforeEach(async () => {
-    updatePayload = undefined;
+    navigatedCommands = undefined;
     storedPackage = {
       id: 21,
       name: 'Team',
@@ -74,16 +75,14 @@ describe('PackageManagement', () => {
     packagesApi = TestBed.inject(PackageService);
     packagesApi.list = () => of(packagePage);
     packagesApi.getByIds = () => of([storedPackage]);
-    packagesApi.update = (id, payload) => {
-      updatePayload = payload;
-      storedPackage = { ...storedPackage, ...payload, id };
-      packagePage.content = [storedPackage];
-      return of(storedPackage);
-    };
+    draft = TestBed.inject(PackageDraftService);
     TestBed.inject(AuthService).listAdmins = () => of(adminPage);
     const router = TestBed.inject(Router);
     router.getCurrentNavigation = () => null;
-    router.navigate = () => Promise.resolve(true);
+    router.navigate = (commands) => {
+      navigatedCommands = commands;
+      return Promise.resolve(true);
+    };
 
     fixture = TestBed.createComponent(PackageManagement);
     component = fixture.componentInstance;
@@ -95,7 +94,7 @@ describe('PackageManagement', () => {
     expect(component).toBeTruthy();
   });
 
-  it('persists User Management Update as off and reloads it as off when editing again', () => {
+  it('navigates to permissions with the edited package and its existing permissions', () => {
     const moreActions = fixture.nativeElement.querySelector(
       'button[aria-label="More actions"]',
     ) as HTMLButtonElement;
@@ -108,27 +107,13 @@ describe('PackageManagement', () => {
     editButton.click();
     fixture.detectChanges();
 
-    const updateSwitch = fixture.nativeElement.querySelector(
-      'button[aria-label="update User Management"]',
-    ) as HTMLButtonElement;
-    expect(updateSwitch.getAttribute('aria-checked')).toBe('true');
-    updateSwitch.click();
-    fixture.detectChanges();
-    expect(updateSwitch.getAttribute('aria-checked')).toBe('false');
-
-    (fixture.nativeElement.querySelector('button[type="submit"]') as HTMLButtonElement).click();
+    const nextButton = fixture.nativeElement.querySelector('button[type="submit"]') as HTMLButtonElement;
+    expect(nextButton.textContent).toContain('Next');
+    nextButton.click();
     fixture.detectChanges();
 
-    expect(updatePayload?.permissions[0].features[0].permissions.update).toBe(false);
-
-    fixture.nativeElement.querySelector('button[aria-label="More actions"]').click();
-    fixture.detectChanges();
-    fixture.nativeElement.querySelector('button[aria-label="Edit package"]').click();
-    fixture.detectChanges();
-
-    const reopenedUpdateSwitch = fixture.nativeElement.querySelector(
-      'button[aria-label="update User Management"]',
-    ) as HTMLButtonElement;
-    expect(reopenedUpdateSwitch.getAttribute('aria-checked')).toBe('false');
+    expect(draft.editingPackageId()).toBe(21);
+    expect(draft.pendingPayload()?.permissions[0].features[0].permissions.update).toBe(true);
+    expect(navigatedCommands).toEqual(['/super-admin-dashboard/package/create/permissions']);
   });
 });

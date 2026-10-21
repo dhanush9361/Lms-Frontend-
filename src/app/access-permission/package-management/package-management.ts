@@ -6,7 +6,7 @@ import { finalize, map, of, switchMap } from 'rxjs';
 import { CreatePackageModal } from '../pop-modals/create-package-modal/create-package-modal';
 import { AssignPackageModal, PackageAssignRequest } from '../pop-modals/assign-package-modal/assign-package-modal';
 import { buildPackageDetailsForm, wordCountOf } from '../pop-modals/forms/package-form';
-import { AVAILABLE_PACKAGE_OPTIONS, PackagePayload, PackagePermissionCategory, PackageRecord, PackageService, PackageDraftService, PermissionAction } from '../../services/package.service';
+import { AVAILABLE_PACKAGE_OPTIONS, PackagePayload, PackageRecord, PackageService, PackageDraftService } from '../../services/package.service';
 import { AdminSummary, AuthService } from '../../services/auth';
 
 export interface AdminPackageRow {
@@ -102,10 +102,7 @@ export class PackageManagement implements OnInit {
   protected readonly deletingPackageId = signal<number | null>(null);
   protected readonly viewingPackage = signal<PackageRecord | null>(null);
   protected readonly editingPackage = signal<PackageRecord | null>(null);
-  protected readonly editingPermissions = signal<PackagePermissionCategory[]>([]);
-  protected readonly editSubmitting = signal(false);
   protected readonly availablePackageOptions = AVAILABLE_PACKAGE_OPTIONS;
-  protected readonly editPermissionActions: readonly PermissionAction[] = ['create', 'read', 'update', 'delete'];
   protected readonly editForm = buildPackageDetailsForm(
     () => this.packages(),
     () => this.editingPackage()?.id ?? null,
@@ -260,15 +257,6 @@ export class PackageManagement implements OnInit {
 
     this.formError.set('');
     this.editingPackage.set(item);
-    this.editingPermissions.set(
-      item.permissions.map((category) => ({
-        ...category,
-        features: category.features.map((feature) => ({
-          ...feature,
-          permissions: { ...feature.permissions },
-        })),
-      })),
-    );
     this.editForm.reset({
       name: item.name,
       availablePackage: item.availablePackage,
@@ -281,41 +269,20 @@ export class PackageManagement implements OnInit {
   }
 
   protected closeEditPackage(): void {
-    if (this.editSubmitting()) return;
     this.editingPackage.set(null);
-    this.editingPermissions.set([]);
     this.editForm.reset();
     this.formError.set('');
-  }
-
-  protected toggleEditPermission(categoryId: string, featureId: string, action: PermissionAction): void {
-    this.editingPermissions.update((categories) =>
-      categories.map((category) => {
-        if (category.id !== categoryId) return category;
-        const features = category.features.map((feature) =>
-          feature.id === featureId
-            ? { ...feature, permissions: { ...feature.permissions, [action]: !feature.permissions[action] } }
-            : feature,
-        );
-        return {
-          ...category,
-          enabled: features.some((feature) => Object.values(feature.permissions).some(Boolean)),
-          features,
-        };
-      }),
-    );
   }
 
   protected editDescriptionWordCount(): number {
     return wordCountOf(this.editForm.controls.description.value);
   }
 
-  protected savePackageEdits(): void {
+  protected nextToEditPermissions(): void {
     const item = this.editingPackage();
     this.editForm.markAllAsTouched();
-    if (!item || this.editForm.invalid || this.editSubmitting()) return;
+    if (!item || this.editForm.invalid) return;
 
-    this.editSubmitting.set(true);
     this.formError.set('');
     const value = this.editForm.getRawValue();
     const payload: PackagePayload = {
@@ -326,23 +293,13 @@ export class PackageManagement implements OnInit {
       billingCycle: value.billingCycle as PackagePayload['billingCycle'],
       userLimit: value.userLimit!,
       storageLimit: value.storageLimit,
-      permissions: this.editingPermissions(),
+      permissions: item.permissions,
     };
 
-    this.packagesApi
-      .update(item.id, payload)
-      .pipe(finalize(() => this.editSubmitting.set(false)))
-      .subscribe({
-        next: () => {
-          this.editingPackage.set(null);
-          this.editingPermissions.set([]);
-          this.editForm.reset();
-          this.loadPackages();
-          this.loadAllPackagesForDialogs();
-          this.flashSuccess('Package updated successfully.');
-        },
-        error: (error) => this.handleSaveError(error, 'Package update failed. Please try again.'),
-      });
+    this.draft.startEditDraft(item.id, payload);
+    this.editingPackage.set(null);
+    this.editForm.reset();
+    void this.router.navigate([PACKAGE_PERMISSIONS_PATH]);
   }
 
   /**

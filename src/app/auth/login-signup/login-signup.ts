@@ -175,6 +175,7 @@ export class LoginSignup {
 
   protected readonly loggingIn = signal(false);
   protected readonly loginError = signal('');
+  protected readonly loginNotice = signal('');
 
   /* ---- Forgot-password state ---- */
   protected readonly forgotSubmitting = signal(false);
@@ -269,6 +270,11 @@ export class LoginSignup {
   }
 
   constructor() {
+    const navigationMessage = this.router.getCurrentNavigation()?.extras.state?.['message'];
+    const restoredMessage = (this.document.defaultView?.history.state as { message?: unknown } | undefined)?.message;
+    const message = navigationMessage ?? restoredMessage;
+    if (typeof message === 'string') this.loginNotice.set(message);
+
     // Phone length rules depend on the selected country code.
     this.signupForm.controls.countryCode.valueChanges
       .pipe(takeUntilDestroyed())

@@ -1,8 +1,10 @@
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { RouterLink } from '@angular/router';
 
 
 @Component({
   selector: 'app-admin-dashboard-home',
+  imports: [RouterLink],
   templateUrl: './admin-dashboard-home.html',
   styleUrl: './admin-dashboard-home.css',
   changeDetection: ChangeDetectionStrategy.OnPush,

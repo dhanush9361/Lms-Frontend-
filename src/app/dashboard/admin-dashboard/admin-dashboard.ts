@@ -88,6 +88,13 @@ export class AdminDashboard {
         { label: 'Enrolled Course List', link: null, plain: true },
       ];
     }
+
+    if (/^\/admin-dashboard\/users\/?$/.test(path)) {
+      return [
+        { label: 'Users', link: ['/admin-dashboard', 'admin-dashboard-home'], plain: true },
+        { label: 'Bulk User', link: null, plain: true },
+      ];
+    }
     return [];
   });
 
@@ -124,9 +131,11 @@ export class AdminDashboard {
   }
 
   onGlobalSearch(term: string): void {
-    // TODO: wire to a global search endpoint once one exists. Intentionally
-    // NOT coupled to CourseManagement's/RoleManagement's own local search
-    // state - those are page-level concerns owned by their own components.
-    void term;
+    if (/^\/admin-dashboard\/users\/?$/.test(this.router.url.split('?')[0])) {
+      void this.router.navigate(['/admin-dashboard/users'], {
+        queryParams: { search: term.trim() || null },
+        queryParamsHandling: 'merge',
+      });
+    }
   }
 }

@@ -90,6 +90,12 @@ export const routes: Routes = [
           ),
         title: 'Course Management',
       },
+      {
+        path: 'users',
+        loadComponent: () =>
+          import('./dashboard/user/user').then((m) => m.User),
+        title: 'Bulk User Management',
+      },
 
       {
   path: 'courses/:courseId/enrollments',

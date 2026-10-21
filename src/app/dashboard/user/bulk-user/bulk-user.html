@@ -1,0 +1,199 @@
+<section class="mx-auto w-full max-w-6xl px-4 py-8 sm:px-8" aria-labelledby="bulk-user-title">
+  <header class="mb-6 flex flex-wrap items-end justify-between gap-5">
+    <div>
+      <h1 id="bulk-user-title" class="text-2xl font-semibold text-[#454545]">Bulk Users</h1>
+      <p class="mt-2 max-w-2xl text-sm text-[#666]">
+        Manage bulk user imports, exports, enrollments, unenrollments, and deletions with ease.
+      </p>
+    </div>
+
+    <label class="relative">
+      <span class="sr-only">Bulk Users actions</span>
+      <select id="bulk-user-actions"
+              class="h-10 min-w-40 appearance-none rounded-full border border-neutral-200 bg-white py-2 pl-4 pr-10 text-xs font-medium text-[#454545] outline-none transition hover:border-[#62b9c8] focus-visible:ring-2 focus-visible:ring-[#61b7c5]/60"
+              (change)="onBulkActionChange($event)">
+        <option value="" selected>Bulk Users</option>
+        @for (action of actions; track action.id) {
+          <option [value]="action.id">{{ action.label }}</option>
+        }
+      </select>
+      <svg viewBox="0 0 24 24" class="pointer-events-none absolute right-3 top-1/2 size-3 -translate-y-1/2 fill-none stroke-[#555]" stroke-width="2" aria-hidden="true">
+        <path d="m7 10 5 5 5-5" />
+      </svg>
+    </label>
+  </header>
+
+  @if (feedback(); as message) {
+    <p class="mb-4 rounded-lg px-4 py-3 text-sm"
+       [class.bg-red-50]="feedbackIsError()"
+       [class.text-red-800]="feedbackIsError()"
+       [class.bg-emerald-50]="!feedbackIsError()"
+       [class.text-emerald-800]="!feedbackIsError()"
+       [attr.role]="feedbackIsError() ? 'alert' : 'status'">
+      {{ message }}
+    </p>
+  }
+
+  <div class="overflow-x-auto rounded-xl bg-white shadow-sm ring-1 ring-black/5">
+    <table class="w-full min-w-[760px] border-collapse text-left text-xs text-[#454545]">
+      <caption class="sr-only">Users. Select users to export, or open a row's More Action menu.</caption>
+      <thead>
+        <tr class="h-12 border-b border-neutral-100 text-[11px] font-medium text-[#555]">
+          <th scope="col" class="w-10 px-4">
+            <input id="select-visible-users" type="checkbox" aria-label="Select all visible users"
+                   class="size-3.5 accent-[#62b9c8] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#26727d]"
+                   [checked]="allVisibleSelected()" (change)="toggleAllVisible($any($event.target).checked)" />
+          </th>
+          <th scope="col" class="px-2 font-medium">Username</th>
+          <th scope="col" class="px-2 font-medium">Role</th>
+          <th scope="col" class="px-2 font-medium">Email</th>
+          <th scope="col" class="px-2 font-medium">Status</th>
+          <th scope="col" class="px-2 font-medium">Department</th>
+          <th scope="col" class="w-20 px-4 text-center font-medium">More Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        @if (loadingUsers() && !users().length) {
+          <tr><td colspan="7" class="h-28 text-center text-sm text-neutral-500" role="status">Loading users…</td></tr>
+        } @else if (filteredUsers().length) {
+          @for (user of filteredUsers(); track user.id) {
+            <tr class="h-[42px] border-b border-neutral-50 last:border-0 hover:bg-[#fbfcfc]">
+              <td class="px-4">
+                <input type="checkbox" [checked]="selectedUserIds().has(user.id)"
+                       [attr.aria-label]="'Select ' + user.username"
+                       class="size-3.5 accent-[#62b9c8] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#26727d]"
+                       (change)="toggleUser(user.id, $any($event.target).checked)" />
+              </td>
+              <th scope="row" class="px-2 font-medium">
+                <span class="inline-flex items-center gap-2">
+                  <span class="grid size-7 shrink-0 place-items-center rounded-full bg-[#e8f8fb] text-[9px] font-semibold text-[#267d8a]" aria-hidden="true">
+                    {{ user.username.slice(0, 1).toUpperCase() }}
+                  </span>
+                  <span>{{ user.username }}</span>
+                </span>
+              </th>
+              <td class="px-2">{{ user.role }}</td>
+              <td class="px-2">{{ user.email }}</td>
+              <td class="px-2">
+                <span class="rounded-full px-2 py-1 text-[10px]"
+                      [class.bg-emerald-50]="user.status === 'Active'"
+                      [class.text-emerald-800]="user.status === 'Active'"
+                      [class.bg-neutral-100]="user.status !== 'Active'"
+                      [class.text-neutral-700]="user.status !== 'Active'">{{ user.status }}</span>
+              </td>
+              <td class="px-2">{{ user.department }}</td>
+              <td class="relative px-4 text-center">
+                <button type="button"
+                        class="mx-auto grid size-7 place-items-center rounded-full bg-neutral-100 text-[#555] hover:bg-[#e8f8fb] hover:text-[#267d8a] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#26727d]"
+                        [attr.aria-label]="'More actions for ' + user.username"
+                        [attr.aria-expanded]="rowActionDraft()?.user?.id === user.id"
+                        (click)="rowActionDraft()?.user?.id === user.id ? cancelRowActions() : openRowActions(user)">
+                  <svg viewBox="0 0 24 24" class="size-4 fill-current" aria-hidden="true">
+                    <circle cx="12" cy="5" r="1.7" /><circle cx="12" cy="12" r="1.7" /><circle cx="12" cy="19" r="1.7" />
+                  </svg>
+                </button>
+
+                @if (rowActionDraft(); as draft) {
+                  @if (draft.user.id === user.id) {
+                    <section class="absolute right-3 top-9 z-30 w-64 rounded-xl border border-neutral-100 bg-white p-3 text-left shadow-[0_8px_24px_rgba(0,0,0,.12)]"
+                             role="group" [attr.aria-label]="'User settings for ' + user.username" (keydown)="onRowActionKeydown($event)">
+                      <label class="flex cursor-pointer items-center gap-2 text-[11px] font-medium text-[#454545]">
+                        <input [id]="'suspend-user-' + user.id" type="checkbox" class="size-3.5 accent-[#62b9c8]"
+                               [checked]="draft.suspendUser" (change)="updateRowDraft({ suspendUser: $any($event.target).checked })" />
+                        Suspend User
+                      </label>
+                      <div class="mt-2 grid grid-cols-2 gap-2">
+                        <label class="text-[9px] text-neutral-500">Start Date
+                          <input type="date" class="mt-1 h-8 w-full rounded border border-neutral-200 px-2 text-[10px] text-[#454545] disabled:bg-neutral-100"
+                                 [disabled]="!draft.suspendUser" [value]="draft.startDate"
+                                 (change)="updateRowDraft({ startDate: $any($event.target).value })" />
+                        </label>
+                        <label class="text-[9px] text-neutral-500">End Date
+                          <input type="date" class="mt-1 h-8 w-full rounded border border-neutral-200 px-2 text-[10px] text-[#454545] disabled:bg-neutral-100"
+                                 [disabled]="!draft.suspendUser" [value]="draft.endDate"
+                                 (change)="updateRowDraft({ endDate: $any($event.target).value })" />
+                        </label>
+                      </div>
+                      <fieldset class="mt-3 border-y border-neutral-100 py-2">
+                        <legend class="sr-only">User status</legend>
+                        <label class="flex cursor-pointer items-center gap-2 py-1 text-[10px] text-[#454545]">
+                          <input type="radio" [name]="'user-status-' + user.id" value="Active" class="size-3 accent-[#62b9c8]"
+                                 [checked]="draft.status === 'Active'" (change)="updateRowDraft({ status: 'Active' })" /> Active
+                        </label>
+                        <label class="flex cursor-pointer items-center gap-2 py-1 text-[10px] text-[#454545]">
+                          <input type="radio" [name]="'user-status-' + user.id" value="Inactive" class="size-3 accent-[#62b9c8]"
+                                 [checked]="draft.status === 'Inactive'" (change)="updateRowDraft({ status: 'Inactive' })" /> Inactive
+                        </label>
+                        <label class="mt-1 flex cursor-pointer items-center gap-2 border-t border-neutral-100 pt-2 text-[10px] text-[#454545]">
+                          <input type="checkbox" class="size-3.5 accent-[#62b9c8]" [checked]="draft.deleteUser"
+                                 (change)="updateRowDraft({ deleteUser: $any($event.target).checked })" /> Delete User
+                        </label>
+                      </fieldset>
+                      <div class="mt-3 flex justify-end gap-2">
+                        <button type="button" class="min-h-8 rounded-md border border-neutral-200 px-3 text-[10px] text-[#555] hover:bg-neutral-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#26727d]"
+                                [disabled]="savingRowAction()" (click)="cancelRowActions()">Cancel</button>
+                        <button type="button" class="min-h-8 rounded-md bg-[#62b9c8] px-3 text-[10px] font-medium text-[#173c41] hover:bg-[#51acbb] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#26727d] disabled:opacity-50"
+                                [disabled]="savingRowAction()" (click)="saveRowActions()">{{ savingRowAction() ? 'Saving…' : 'Save' }}</button>
+                      </div>
+                    </section>
+                  }
+                }
+              </td>
+            </tr>
+          }
+        } @else {
+          <tr>
+            <td colspan="7" class="h-32 text-center text-sm text-neutral-500">
+              {{ searchTerm() ? 'No users match your search.' : 'No users are available.' }}
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+
+  @if (activeAction(); as action) {
+    @if (action.id === 'export-users') {
+      <p class="sr-only" role="status">{{ downloading() ? 'Exporting users…' : feedback() }}</p>
+    } @else {
+      <div class="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4" (click)="$event.target === $event.currentTarget && closeDialog()">
+        <section class="w-full max-w-xl rounded-2xl bg-white p-6 shadow-xl" role="dialog" aria-modal="true" aria-labelledby="bulk-dialog-title" (keydown)="onDialogKeydown($event)">
+          <div class="flex items-start justify-between gap-4">
+            <div>
+              <h2 id="bulk-dialog-title" class="text-xl font-semibold text-[#333]">{{ action.label }}</h2>
+              <p class="mt-1 text-sm text-[#555]">{{ action.description }}</p>
+            </div>
+            <button type="button" class="grid size-10 shrink-0 place-items-center rounded-lg text-xl text-neutral-600 hover:bg-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#26727d]" aria-label="Close dialog" (click)="closeDialog()">×</button>
+          </div>
+
+          <div class="mt-6">
+            <label for="bulk-excel-file" class="mb-2 block text-sm font-medium text-[#333]">Choose an Excel File <span aria-hidden="true">*</span></label>
+            <input id="bulk-excel-file" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                   class="block min-h-12 w-full rounded-lg border border-neutral-300 bg-white p-2 text-sm text-[#333] file:mr-3 file:min-h-8 file:rounded-md file:border-0 file:bg-[#edf7f8] file:px-3 file:font-medium file:text-[#26727d] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#26727d]"
+                   [attr.aria-describedby]="feedback() ? 'bulk-upload-feedback' : 'bulk-file-hint'"
+                   [attr.aria-invalid]="feedbackIsError() ? 'true' : null"
+                   [disabled]="uploading()" (change)="onFileChange($event)" />
+            <p id="bulk-file-hint" class="mt-2 text-xs text-[#555]">Excel workbook (.xlsx), maximum size 10 MB.</p>
+            @if (feedback(); as message) {
+              <p id="bulk-upload-feedback" class="mt-3 text-sm" [class.text-red-700]="feedbackIsError()" [class.text-emerald-700]="!feedbackIsError()" [attr.role]="feedbackIsError() ? 'alert' : 'status'">{{ message }}</p>
+            }
+          </div>
+
+          <div class="mt-6 flex flex-wrap justify-between gap-3">
+            <button type="button" class="min-h-11 rounded-lg border border-neutral-300 px-4 py-2 text-sm font-medium text-[#333] hover:bg-neutral-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#26727d]"
+                    [disabled]="downloading()" (click)="downloadTemplate()">
+              {{ downloading() ? 'Preparing…' : 'Download Sample Excel Template' }}
+            </button>
+            <div class="flex gap-3">
+              <button type="button" class="min-h-11 rounded-lg border border-neutral-300 px-4 py-2 text-sm font-medium text-[#333] hover:bg-neutral-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#26727d]" (click)="closeDialog()">Cancel</button>
+              <button type="button" class="min-h-11 rounded-lg bg-[#318995] px-5 py-2 text-sm font-semibold text-white hover:bg-[#26727d] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#26727d] disabled:cursor-not-allowed disabled:opacity-50"
+                      [disabled]="!selectedFile() || uploading()" (click)="upload()">
+                {{ uploading() ? 'Uploading…' : 'Upload' }}
+              </button>
+            </div>
+          </div>
+        </section>
+      </div>
+    }
+  }
+</section>
