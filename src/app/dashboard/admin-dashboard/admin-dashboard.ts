@@ -90,10 +90,7 @@ export class AdminDashboard {
     }
 
     if (/^\/admin-dashboard\/users\/?$/.test(path)) {
-      return [
-        { label: 'Users', link: ['/admin-dashboard', 'admin-dashboard-home'], plain: true },
-        { label: 'Bulk User', link: null, plain: true },
-      ];
+      return [{ label: 'Users', link: null, plain: true }];
     }
     return [];
   });

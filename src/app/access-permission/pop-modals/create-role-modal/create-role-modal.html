@@ -24,7 +24,7 @@
       {{ editing() ? 'Update Role' : 'Create Role' }}
     </h2>
     <p class="mt-1 text-xs">Configure the role name and permissions</p>
-    <form [formGroup]="form()" (ngSubmit)="continued.emit()" class="mt-6 space-y-4">
+    <form [formGroup]="form()" (ngSubmit)="continue()" class="mt-6 space-y-4">
      
       <label for="roleName" class="block text-xs font-medium"
         >Role Name<span class="text-red-500">*</span></label
@@ -51,13 +51,13 @@
         {{ 50 - (form().controls['roleName'].value?.length ?? 0) }} characters remaining
    
       </div>
-      @if (form().controls['roleName'].touched) {
+      @if (form().controls['roleName'].touched || form().controls['roleName'].dirty) {
         @if (form().controls['roleName'].hasError('required')) {
           <p class="text-xs text-red-500">Role Name is required.</p>
+        } @else if (form().controls['roleName'].hasError('emoji')) {
+          <p class="text-xs text-red-500" role="alert" aria-live="polite">Emojis are not allowed in Role Name.</p>
         } @else if (form().controls['roleName'].hasError('whitespace')) {
           <p class="text-xs text-red-500">Role Name cannot contain only spaces.</p>
-        } @else if (form().controls['roleName'].hasError('pattern')) {
-          <p class="text-xs text-red-500">Role Name can contain letters and spaces only.</p>
         } @else if (form().controls['roleName'].hasError('minlength')) {
           <p class="text-xs text-red-500">Role Name must contain at least 4 characters.</p>
         } @else if (form().controls['roleName'].hasError('maxlength')) {

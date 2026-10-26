@@ -179,16 +179,30 @@ export class PackageDraftService {
   readonly hasDraft = computed(() => this._pendingPayload() !== null);
 
   /** Called once, right after GET /api/packages/features resolves. */
-  setSeedCategories(categories: PackagePermissionCategory[]): void {
+  setSeedCategories(categories: PackagePermissionCategory[], preserveExisting = false): void {
+    const existingCategories = preserveExisting ? this._categories() : [];
     this._categories.set(
-      categories.map((category) => ({
-        ...category,
-        enabled: false,
-        features: category.features.map((feature) => ({
-          ...feature,
-          permissions: { create: false, read: false, update: false, delete: false },
-        })),
-      })),
+      categories.map((category) => {
+        const existingCategory = existingCategories.find(
+          (candidate) =>
+            candidate.id === category.id || candidate.name.toLowerCase() === category.name.toLowerCase(),
+        );
+        const features = category.features.map((feature) => {
+          const existingFeature = existingCategory?.features.find((candidate) => candidate.id === feature.id);
+          return {
+            ...feature,
+            permissions: existingFeature
+              ? { ...existingFeature.permissions }
+              : { create: false, read: false, update: false, delete: false },
+          };
+        });
+
+        return {
+          ...category,
+          enabled: features.some((feature) => Object.values(feature.permissions).some(Boolean)),
+          features,
+        };
+      }),
     );
   }
 

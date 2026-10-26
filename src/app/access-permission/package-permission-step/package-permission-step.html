@@ -75,7 +75,7 @@
               class="h-10 w-36 rounded-lg bg-white text-xs transition hover:bg-[#eeeeee] disabled:opacity-50 2xl:h-12 2xl:w-48 2xl:rounded-xl 2xl:text-[14px]">Cancel</button>
       <button type="button" (click)="savePackageWithPermissions()" [disabled]="submitting() || !featuresLoaded()"
               class="h-10 w-36 rounded-lg bg-white text-xs transition hover:bg-[#61b7c5] hover:text-white disabled:cursor-not-allowed disabled:opacity-50 2xl:h-12 2xl:w-48 2xl:rounded-xl 2xl:text-[14px]">
-        {{ submitting() ? 'Saving…' : 'Save Package' }}
+        {{ submitting() ? (draft.editingPackageId() !== null ? 'Updating…' : 'Saving…') : (draft.editingPackageId() !== null ? 'Update Package' : 'Save Package') }}
       </button>
     </div>
   </main>

@@ -325,6 +325,26 @@
                         <path d="m14 7 3 3" stroke-linecap="round" />
                       </svg>
                     </button>
+                    @if (activity.kind === 'Ebook') {
+                      <button
+                        type="button"
+                        class="grid size-7 place-items-center rounded-full bg-[#61b7c5] text-white transition hover:bg-[#489daa]"
+                        [attr.aria-label]="'Preview ' + activity.title"
+                        (click)="previewEbook(section.id, activity.id)"
+                        title="Preview Ebook"
+                      >
+                        <span aria-hidden="true">◉</span>
+                      </button>
+                      <button
+                        type="button"
+                        class="grid size-7 place-items-center rounded-full bg-[#61b7c5] text-white transition hover:bg-[#489daa]"
+                        [attr.aria-label]="'Copy ' + activity.title"
+                        (click)="copyEbook(activity.id)"
+                        title="Copy Ebook"
+                      >
+                        <span aria-hidden="true">⧉</span>
+                      </button>
+                    }
                     <button
                       type="button"
                       class="grid size-7 place-items-center rounded-full bg-[#61b7c5] text-white transition hover:bg-red-500"
@@ -527,6 +547,19 @@
       [resource]="dialog.resource"
       (resourceSaved)="onResourceSaved($event)"
       (closed)="closeResourceDialog()"
+    />
+  }
+
+  @if (ebookDialog(); as dialog) {
+    <app-ebook
+      [courseId]="course.id"
+      [courseLabel]="course.name"
+      [sectionId]="dialog.sectionId"
+      [activityId]="dialog.activityId"
+      [embedded]="true"
+      [previewOnly]="dialog.preview"
+      (saved)="onEbookSaved($event)"
+      (closed)="closeEbookDialog()"
     />
   }
 

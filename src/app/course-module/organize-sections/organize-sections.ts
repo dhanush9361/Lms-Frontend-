@@ -24,6 +24,8 @@ import {
 import { MultimediaUpload } from '../pop-modals/multimedia-upload/multimedia-upload';
 import { MultimediaManagementService } from '../../services/multimedia-management.service';
 import { MultimediaResource, MultimediaSaveResult } from '../multimedia.model';
+import { Ebook } from '../ebook/ebook';
+import { EbookActivity, EbookService } from '../ebook/ebook.service';
 
 // Must match SectionService.validateAndNormalizeName on the backend.
 const MIN_CHARS = 3;
@@ -42,7 +44,7 @@ export interface SectionActivity {
 @Component({
   selector: 'app-organize-sections',
   // CHANGED: added MultimediaUpload
-  imports: [MultimediaUpload],
+  imports: [MultimediaUpload, Ebook],
   templateUrl: './organize-sections.html',
   styleUrl: './organize-sections.css',
 })
@@ -58,6 +60,7 @@ export class OrganizeSections implements OnInit, OnDestroy {
   private readonly sectionService = inject(SectionManagementService);
   // NEW
   private readonly multimediaService = inject(MultimediaManagementService);
+  private readonly ebookService = inject(EbookService);
   private readonly destroyRef = inject(DestroyRef);
 
   // ---------- page state ----------
@@ -117,12 +120,19 @@ export class OrganizeSections implements OnInit, OnDestroy {
         list.map(r => ({ id: r.id, kind: 'Multimedia' as const, title: r.name })),
       );
     }
+    for (const ebook of this.ebookService.ebooks()) {
+      if (ebook.courseId !== this.course.id) continue;
+      const activities = map.get(ebook.sectionId) ?? [];
+      activities.push({ id: ebook.id, kind: 'Ebook', title: ebook.name });
+      map.set(ebook.sectionId, activities);
+    }
     return map;
   });
   /** Open upload / edit dialog: null = closed, resource = null means "new upload". */
   readonly resourceDialog = signal<{ sectionId: number; resource: MultimediaResource | null } | null>(
     null,
   );
+  readonly ebookDialog = signal<{ sectionId: number; activityId: number | null; preview: boolean } | null>(null);
 
   private pendingRetry: (() => void) | null = null;
   private toastTimer: ReturnType<typeof setTimeout> | undefined;
@@ -534,6 +544,10 @@ export class OrganizeSections implements OnInit, OnDestroy {
   /** Add Activity -> Multimedia opens the upload dialog; the pencil icon on a row opens it in edit mode. */
   openResourceDialog(kind: ActivityKind, sectionId: number, activity?: SectionActivity): void {
     this.activityMenuSectionId.set(null);
+    if (kind === 'Ebook') {
+      this.ebookDialog.set({ sectionId, activityId: activity?.id ?? null, preview: false });
+      return;
+    }
     if (kind !== 'Multimedia') {
       this.showToast(`${kind} upload will be available soon.`);
       return;
@@ -542,6 +556,27 @@ export class OrganizeSections implements OnInit, OnDestroy {
       ? ((this.resourcesBySection().get(sectionId) ?? []).find(r => r.id === activity.id) ?? null)
       : null;
     this.resourceDialog.set({ sectionId, resource });
+  }
+
+  previewEbook(sectionId: number, activityId: number): void {
+    this.ebookDialog.set({ sectionId, activityId, preview: true });
+  }
+
+  closeEbookDialog(): void {
+    this.ebookDialog.set(null);
+  }
+
+  onEbookSaved(ebook: EbookActivity): void {
+    this.showToast(`“${ebook.name}” saved successfully.`);
+  }
+
+  copyEbook(activityId: number): void {
+    try {
+      const copy = this.ebookService.copy(activityId);
+      if (copy) this.showToast('Ebook copied successfully.');
+    } catch {
+      this.showToast('Something went wrong. Please try again later.');
+    }
   }
 
   closeResourceDialog(): void {
@@ -562,6 +597,17 @@ export class OrganizeSections implements OnInit, OnDestroy {
   }
 
   removeActivity(sectionId: number, activityId: number): void {
+    const activity = this.activitiesForSection(sectionId).find(item => item.id === activityId);
+    if (activity?.kind === 'Ebook') {
+      if (!window.confirm(`Delete “${activity.title}”? This action cannot be undone.`)) return;
+      try {
+        this.ebookService.remove(activityId);
+        this.showToast('Ebook deleted successfully.');
+      } catch {
+        this.showToast('Something went wrong. Please try again later.');
+      }
+      return;
+    }
     this.multimediaService
       .deleteResource(this.course.id, sectionId, activityId)
       .pipe(takeUntilDestroyed(this.destroyRef))

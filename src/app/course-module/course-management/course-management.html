@@ -201,6 +201,16 @@
                     <div><dt class="text-[10px]">Status</dt><dd class="mt-1 truncate text-[9px]">{{ courseStatusLabel(course.status) }}</dd></div>
                   </dl>
                   @if (canManage()) {
+                    <div class="relative shrink-0">
+                      @if (activityMenuCourseId() === course.id) {
+                        <div class="absolute bottom-full right-0 z-30 mb-2 min-w-32 rounded-xl bg-white p-1.5 text-[#505050] shadow-xl ring-1 ring-black/10" role="menu" [attr.aria-label]="'Activities for ' + course.name" (click)="$event.stopPropagation()">
+                          <button type="button" role="menuitem" class="block w-full rounded-lg px-3 py-2 text-left text-xs transition hover:bg-[#f2f8f9] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#61b7c5]" (click)="activityMenuCourseId.set(null); openEbook(course)">Ebook</button>
+                        </div>
+                      }
+                      <button type="button" class="h-6 shrink-0 cursor-pointer rounded-full border border-white/70 bg-white/95 px-3 text-[9px] font-medium text-[#333] transition hover:border-[#7fb9c7] hover:bg-[#4694A4] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#61b7c5]" [attr.aria-expanded]="activityMenuCourseId() === course.id" aria-haspopup="menu" [attr.aria-label]="'Add activity to ' + course.name" (click)="toggleActivityMenu(course.id, $event)">
+                        + Add Activity
+                      </button>
+                    </div>
                     <button type="button" class="h-6 shrink-0 cursor-pointer rounded-full border border-transparent bg-white px-4 text-[9px] text-[#333] font-medium transition-all duration-300 ease-out enabled:hover:border-[#7fb9c7] enabled:hover:bg-[#4694A4] enabled:hover:text-[#f4fbfc] enabled:hover:shadow-[0_8px_18px_-2px_rgba(70,160,180,0.65),0_3px_8px_rgba(120,200,215,0.3)] enabled:focus-visible:border-[#7fb9c7] enabled:focus-visible:bg-[#4694A4] enabled:focus-visible:text-[#f4fbfc] enabled:focus-visible:shadow-[0_8px_18px_-2px_rgba(70,160,180,0.65),0_3px_8px_rgba(120,200,215,0.3)] focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50" (click)="openViewModal(course)" [attr.aria-label]="'View ' + course.name">
                       View
                     </button>
@@ -267,4 +277,13 @@
     (editCourseRequested)="editFromOrganize()"
   />
 }
- 
+
+@if (ebookOpen() && selectedEbookCourse(); as ebookCourse) {
+  <div class="fixed inset-0 z-[90] grid place-items-center bg-black/55 p-3 backdrop-blur-sm sm:p-6" (click)="ebookEditor.closeEditor()">
+    <section class="relative flex h-[min(92dvh,900px)] w-[min(96vw,1280px)] min-h-0 flex-col overflow-hidden rounded-2xl bg-white shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="ebook-modal-heading" (click)="$event.stopPropagation()">
+      <h2 id="ebook-modal-heading" class="sr-only">Ebook editor for {{ ebookCourse.name }}</h2>
+      <button type="button" class="absolute right-3 top-3 z-20 grid size-9 place-items-center rounded-lg bg-[#ff5d59] text-xl leading-none text-white shadow transition hover:bg-[#e64d49] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white" aria-label="Close Ebook editor" (click)="ebookEditor.closeEditor()">×</button>
+      <app-ebook #ebookEditor [courseId]="ebookCourse.id" [courseLabel]="ebookCourse.name" [embedded]="true" (closed)="closeEbook()" />
+    </section>
+  </div>
+}

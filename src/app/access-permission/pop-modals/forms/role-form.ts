@@ -1,5 +1,12 @@
 import { AbstractControl, FormBuilder, FormGroup, ValidationErrors, ValidatorFn, Validators } from '@angular/forms';
 
+const ROLE_NAME_EMOJI_PATTERN = /[\p{Extended_Pictographic}\p{Regional_Indicator}\u{1F3FB}-\u{1F3FF}]|[#*0-9]\uFE0F?\u20E3/u;
+
+function noEmojiValidator(control: AbstractControl): ValidationErrors | null {
+  const value = (control.value ?? '') as string;
+  return ROLE_NAME_EMOJI_PATTERN.test(value) ? { emoji: true } : null;
+}
+
 function notOnlyWhitespaceValidator(control: AbstractControl): ValidationErrors | null {
   const value = (control.value ?? '') as string;
   return value.length > 0 && value.trim().length === 0 ? { whitespace: true } : null;
@@ -22,6 +29,7 @@ export function buildRoleForm(fb: FormBuilder, existingNames: () => string[]): F
       '',
       [
         Validators.required,
+        noEmojiValidator,
         notOnlyWhitespaceValidator,
         Validators.minLength(4),
         Validators.maxLength(50),

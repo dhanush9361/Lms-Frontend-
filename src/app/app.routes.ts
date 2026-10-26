@@ -113,6 +113,14 @@ export const routes: Routes = [
     ],
   },
 
+      // Ebook page
+  {
+    path: 'ebook',
+    loadComponent: () =>
+      import('./course-module/ebook/ebook').then((m) => m.Ebook),
+    title: 'Ebook',
+  },
+
   {
     path: '**',
     redirectTo: 'auth',

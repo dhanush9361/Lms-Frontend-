@@ -429,11 +429,14 @@ export class PackageManagement implements OnInit {
    */
   private flashSuccessIfReturningFromPermissionStep(): void {
     const state = this.router.getCurrentNavigation()?.extras.state
-      ?? (history.state as { packageCreated?: boolean } | undefined);
+      ?? (history.state as { packageCreated?: boolean; packageUpdated?: boolean } | undefined);
     if (state?.packageCreated) {
       this.flashSuccess('Package created successfully.');
       // Keep Angular's own keys (e.g. navigationId), drop only our flag.
       history.replaceState({ ...history.state, packageCreated: undefined }, '');
+    } else if (state?.packageUpdated) {
+      this.flashSuccess('Package updated successfully.');
+      history.replaceState({ ...history.state, packageUpdated: undefined }, '');
     }
   }
 

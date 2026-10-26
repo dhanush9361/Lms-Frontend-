@@ -1,9 +1,9 @@
 <section class="mx-auto w-full max-w-6xl px-4 py-8 sm:px-8" aria-labelledby="bulk-user-title">
   <header class="mb-6 flex flex-wrap items-end justify-between gap-5">
     <div>
-      <h1 id="bulk-user-title" class="text-2xl font-semibold text-[#454545]">Bulk Users</h1>
+      <h1 id="bulk-user-title" class="text-2xl font-semibold text-[#454545]"> All Users</h1>
       <p class="mt-2 max-w-2xl text-sm text-[#666]">
-        Manage bulk user imports, exports, enrollments, unenrollments, and deletions with ease.
+        Manage All users imports, exports, enrollments, unenrollments, and deletions with ease.
       </p>
     </div>
 
@@ -20,7 +20,7 @@
       <svg viewBox="0 0 24 24" class="pointer-events-none absolute right-3 top-1/2 size-3 -translate-y-1/2 fill-none stroke-[#555]" stroke-width="2" aria-hidden="true">
         <path d="m7 10 5 5 5-5" />
       </svg>
-    </label>
+    </label >
   </header>
 
   @if (feedback(); as message) {
@@ -84,60 +84,60 @@
               <td class="px-2">{{ user.department }}</td>
               <td class="relative px-4 text-center">
                 <button type="button"
+                        [id]="'row-actions-' + user.id"
                         class="mx-auto grid size-7 place-items-center rounded-full bg-neutral-100 text-[#555] hover:bg-[#e8f8fb] hover:text-[#267d8a] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#26727d]"
                         [attr.aria-label]="'More actions for ' + user.username"
-                        [attr.aria-expanded]="rowActionDraft()?.user?.id === user.id"
-                        (click)="rowActionDraft()?.user?.id === user.id ? cancelRowActions() : openRowActions(user)">
-                  <svg viewBox="0 0 24 24" class="size-4 fill-current" aria-hidden="true">
-                    <circle cx="12" cy="5" r="1.7" /><circle cx="12" cy="12" r="1.7" /><circle cx="12" cy="19" r="1.7" />
-                  </svg>
+                        [attr.aria-expanded]="rowActionMenuUserId() === user.id || rowActionDraft()?.user?.id === user.id"
+                        [attr.aria-haspopup]="'menu'"
+                        (click)="toggleRowActionMenu(user)">
+                 <span class="text-2xl font-bold leading-none">⋮</span>
                 </button>
 
-                @if (rowActionDraft(); as draft) {
-                  @if (draft.user.id === user.id) {
-                    <section class="absolute right-3 top-9 z-30 w-64 rounded-xl border border-neutral-100 bg-white p-3 text-left shadow-[0_8px_24px_rgba(0,0,0,.12)]"
-                             role="group" [attr.aria-label]="'User settings for ' + user.username" (keydown)="onRowActionKeydown($event)">
-                      <label class="flex cursor-pointer items-center gap-2 text-[11px] font-medium text-[#454545]">
-                        <input [id]="'suspend-user-' + user.id" type="checkbox" class="size-3.5 accent-[#62b9c8]"
-                               [checked]="draft.suspendUser" (change)="updateRowDraft({ suspendUser: $any($event.target).checked })" />
-                        Suspend User
-                      </label>
-                      <div class="mt-2 grid grid-cols-2 gap-2">
-                        <label class="text-[9px] text-neutral-500">Start Date
-                          <input type="date" class="mt-1 h-8 w-full rounded border border-neutral-200 px-2 text-[10px] text-[#454545] disabled:bg-neutral-100"
-                                 [disabled]="!draft.suspendUser" [value]="draft.startDate"
-                                 (change)="updateRowDraft({ startDate: $any($event.target).value })" />
-                        </label>
-                        <label class="text-[9px] text-neutral-500">End Date
-                          <input type="date" class="mt-1 h-8 w-full rounded border border-neutral-200 px-2 text-[10px] text-[#454545] disabled:bg-neutral-100"
-                                 [disabled]="!draft.suspendUser" [value]="draft.endDate"
-                                 (change)="updateRowDraft({ endDate: $any($event.target).value })" />
-                        </label>
-                      </div>
-                      <fieldset class="mt-3 border-y border-neutral-100 py-2">
-                        <legend class="sr-only">User status</legend>
-                        <label class="flex cursor-pointer items-center gap-2 py-1 text-[10px] text-[#454545]">
-                          <input type="radio" [name]="'user-status-' + user.id" value="Active" class="size-3 accent-[#62b9c8]"
-                                 [checked]="draft.status === 'Active'" (change)="updateRowDraft({ status: 'Active' })" /> Active
-                        </label>
-                        <label class="flex cursor-pointer items-center gap-2 py-1 text-[10px] text-[#454545]">
-                          <input type="radio" [name]="'user-status-' + user.id" value="Inactive" class="size-3 accent-[#62b9c8]"
-                                 [checked]="draft.status === 'Inactive'" (change)="updateRowDraft({ status: 'Inactive' })" /> Inactive
-                        </label>
-                        <label class="mt-1 flex cursor-pointer items-center gap-2 border-t border-neutral-100 pt-2 text-[10px] text-[#454545]">
-                          <input type="checkbox" class="size-3.5 accent-[#62b9c8]" [checked]="draft.deleteUser"
-                                 (change)="updateRowDraft({ deleteUser: $any($event.target).checked })" /> Delete User
-                        </label>
-                      </fieldset>
-                      <div class="mt-3 flex justify-end gap-2">
-                        <button type="button" class="min-h-8 rounded-md border border-neutral-200 px-3 text-[10px] text-[#555] hover:bg-neutral-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#26727d]"
-                                [disabled]="savingRowAction()" (click)="cancelRowActions()">Cancel</button>
-                        <button type="button" class="min-h-8 rounded-md bg-[#62b9c8] px-3 text-[10px] font-medium text-[#173c41] hover:bg-[#51acbb] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#26727d] disabled:opacity-50"
-                                [disabled]="savingRowAction()" (click)="saveRowActions()">{{ savingRowAction() ? 'Saving…' : 'Save' }}</button>
-                      </div>
-                    </section>
-                  }
-                }
+                <div class="absolute right-1/2 top-1/2 z-30 size-0"
+                     [class.pointer-events-none]="rowActionMenuUserId() !== user.id"
+                     [class.pointer-events-auto]="rowActionMenuUserId() === user.id"
+                     [attr.role]="rowActionMenuUserId() === user.id ? 'menu' : null"
+                     [attr.aria-label]="rowActionMenuUserId() === user.id ? 'Actions for ' + user.username : null"
+                     [attr.aria-hidden]="rowActionMenuUserId() !== user.id"
+                     (keydown)="onActionMenuKeydown($event)">
+                  <button [id]="'row-action-edit-' + user.id" type="button" role="menuitem" [attr.aria-label]="'Edit ' + user.username"
+                          [attr.tabindex]="rowActionMenuUserId() === user.id ? 0 : -1"
+                          [class.opacity-0]="rowActionMenuUserId() !== user.id"
+                          [class.scale-0]="rowActionMenuUserId() !== user.id"
+                          [class.pointer-events-none]="rowActionMenuUserId() !== user.id"
+                          [class.-translate-x-11]="rowActionMenuUserId() === user.id"
+                          class="absolute left-[-1rem] top-[-1rem] grid size-7 place-items-center rounded-full bg-[#62b9c8] text-white shadow-md transition-all duration-300 ease-out hover:bg-[#51acbb] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white motion-reduce:transition-none"
+                          (click)="openUserEdit(user)">
+                    <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="m16 5 3 3M4 20l4.5-1 11-11a2.1 2.1 0 0 0-3-3l-11 11L4 20Z"></path>
+                    </svg>
+                  </button>
+                  <button type="button" role="menuitem" [attr.aria-label]="'User Settings for ' + user.username"
+                          [attr.tabindex]="rowActionMenuUserId() === user.id ? 0 : -1"
+                          [class.opacity-0]="rowActionMenuUserId() !== user.id"
+                          [class.scale-0]="rowActionMenuUserId() !== user.id"
+                          [class.pointer-events-none]="rowActionMenuUserId() !== user.id"
+                          [class.-translate-x-8]="rowActionMenuUserId() === user.id"
+                          [class.translate-y-8]="rowActionMenuUserId() === user.id"
+                          class="absolute left-[-1rem] top-[-1rem] grid size-7 place-items-center rounded-full bg-[#62b9c8] text-white shadow-md transition-all delay-75 duration-300 ease-out hover:bg-[#51acbb] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white motion-reduce:transition-none"
+                          (click)="openUserSettings(user)">
+                    <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="M8 6h13M8 12h13M8 18h13"></path><circle cx="4" cy="6" r="1"></circle><circle cx="4" cy="12" r="1"></circle><circle cx="4" cy="18" r="1"></circle>
+                    </svg>
+                  </button>
+                  <button type="button" role="menuitem" [attr.aria-label]="'Delete ' + user.username"
+                          [attr.tabindex]="rowActionMenuUserId() === user.id ? 0 : -1"
+                          [class.opacity-0]="rowActionMenuUserId() !== user.id"
+                          [class.scale-0]="rowActionMenuUserId() !== user.id"
+                          [class.pointer-events-none]="rowActionMenuUserId() !== user.id"
+                          [class.translate-y-11]="rowActionMenuUserId() === user.id"
+                          class="absolute left-[-1rem] top-[-1rem] grid size-7 place-items-center rounded-full bg-[#62b9c8] text-white shadow-md transition-all delay-150 duration-300 ease-out hover:bg-[#51acbb] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white motion-reduce:transition-none"
+                          (click)="deleteUser(user)">
+                    <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="M3 6h18M8 6V4h8v2m3 0-1 14H6L5 6m5 5v5m4-5v5"></path>
+                    </svg>
+                  </button>
+                </div>
               </td>
             </tr>
           }
@@ -152,6 +152,125 @@
     </table>
   </div>
 
+  @if (rowActionDraft(); as draft) {
+    <div class="fixed inset-0 z-50 grid place-items-center bg-black/35 p-4 backdrop-blur-[2px]">
+     <section
+ class="relative w-[min(100%-2rem,42rem)] min-h-[28rem] rounded-xl bg-white px-8 pb-8 pt-10 shadow-[0_12px_35px_rgba(0,0,0,.2)] sm:px-10 sm:pb-10"
+  role="dialog"
+  aria-modal="true"
+  [attr.aria-label]="'User Settings for ' + draft.user.username"
+  (keydown)="onRowActionKeydown($event)"
+>
+        <button [id]="'close-user-settings-' + draft.user.id" type="button"
+                class="absolute right-0 top-0 grid h-12 w-16 place-items-center rounded-bl-xl rounded-tr-md bg-[#ed5963] text-3xl font-light leading-none text-white transition hover:bg-[#db4852] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#28636e]"
+                aria-label="Close user settings" (click)="cancelRowActions()">
+          <span aria-hidden="true">&times;</span>
+        </button>
+        <div class="grid gap-5">
+        <label class="flex min-h-10 cursor-pointer items-center gap-2 rounded-md bg-[#f4f4f4] px-4 text-sm text-[#505050]">
+          <input [id]="'suspend-user-' + draft.user.id" type="checkbox" class="size-3.5 accent-[#62b9c8]"
+                 [checked]="draft.suspendUser" (change)="updateRowDraft({ suspendUser: $any($event.target).checked })" />
+          Suspend User
+        </label>
+        <div class="grid grid-cols-2 gap-3">
+          <label class="text-[10px] text-neutral-500">
+            <span class="sr-only">Start Date</span>
+            <input type="date" aria-label="Start Date" class="h-11 w-full rounded-md border border-transparent bg-[#f4f4f4] px-3 text-sm text-[#505050] outline-none focus:border-[#438895] focus:ring-2 focus:ring-[#438895]/15 disabled:text-neutral-400"
+                   [disabled]="!draft.suspendUser" [value]="draft.startDate"
+                   (change)="updateRowDraft({ startDate: $any($event.target).value })" />
+          </label>
+          <label class="text-[10px] text-neutral-500">
+            <span class="sr-only">End Date</span>
+            <input type="date" aria-label="End Date" class="h-11 w-full rounded-md border border-transparent bg-[#f4f4f4] px-3 text-sm text-[#505050] outline-none focus:border-[#438895] focus:ring-2 focus:ring-[#438895]/15 disabled:text-neutral-400"
+                   [disabled]="!draft.suspendUser" [value]="draft.endDate"
+                   (change)="updateRowDraft({ endDate: $any($event.target).value })" />
+          </label>
+        </div>
+        <fieldset class="grid gap-3">
+          <legend class="sr-only">User status</legend>
+          <label class="flex min-h-10 cursor-pointer items-center gap-3 rounded-md bg-[#f4f4f4] px-4 text-sm text-[#505050]">
+            <input type="checkbox" [name]="'user-status-' + draft.user.id" value="Active" class="size-4 accent-[#62b9c8]"
+                   [checked]="draft.status === 'Active'" (change)="updateRowDraft({ status: 'Active' })" />
+            Active
+          </label>
+          <label class="flex min-h-10 cursor-pointer items-center gap-3 rounded-md bg-[#f4f4f4] px-4 text-sm text-[#505050]">
+            <input type="checkbox" [name]="'user-status-' + draft.user.id" value="Inactive" class="size-4 accent-[#62b9c8]"
+                   [checked]="draft.status === 'Inactive'" (change)="updateRowDraft({ status: 'Inactive' })" />
+            Inactive
+          </label>
+        </fieldset>
+        </div>
+        <div class="mt-7 flex justify-center gap-3">
+          <button type="button" class="h-11 w-40 rounded-md bg-[#f4f4f4] text-sm font-medium text-[#505050] transition hover:bg-[#eaeaea] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#28636e]"
+                  [disabled]="savingRowAction()" (click)="cancelRowActions()">Cancel</button>
+          <button type="button" class="h-11 w-40 rounded-md bg-[#f4f4f4] text-sm font-medium text-[#505050] transition hover:bg-[#eaeaea] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#28636e] disabled:opacity-50"
+                  [disabled]="savingRowAction()" (click)="saveRowActions()">{{ savingRowAction() ? 'Saving…' : 'Save' }}</button>
+        </div>
+      </section>
+    </div>
+  }
+
+  @if (userEditDraft(); as draft) {
+   <div class="fixed inset-0 z-50 grid place-items-center bg-black/35 p-4 backdrop-blur-[2px]">
+      <section
+  class="relative w-[min(100%-2rem,36rem)] rounded-xl bg-white px-6 pb-7 pt-7 shadow-[0_12px_35px_rgba(0,0,0,.2)] sm:px-8 sm:pb-8"
+  role="dialog"
+  aria-modal="true"
+  [attr.aria-label]="'User Settings for ' + draft.user.username"
+  (keydown)="onRowActionKeydown($event)"
+>
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <h2 id="edit-user-title" class="text-xl font-semibold text-[#333]">Edit User</h2>
+            <p class="mt-1 text-sm text-[#555]">Update {{ draft.user.username }}'s profile details.</p>
+          </div>
+         <button
+  type="button"
+  class="absolute right-0 top-0 grid h-12 w-16 place-items-center rounded-bl-xl rounded-tr-md bg-[#ed5963] text-3xl font-light leading-none text-white transition hover:bg-[#db4852] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#28636e]"
+  aria-label="Close edit user dialog"
+  [disabled]="savingRowAction()"
+  (click)="cancelUserEdit()"
+>
+  <span aria-hidden="true">&times;</span>
+</button>
+        </div>
+
+        <form class="mt-5 space-y-4" (submit)="saveUserEdit($event)">
+          <label for="edit-user-username" class="block text-sm font-medium text-[#454545]">
+            Username
+            <input id="edit-user-username" type="text" required [value]="draft.username"
+                   (input)="updateUserEditDraft({ username: $any($event.target).value })"
+                   class="mt-1 min-h-10 w-full rounded-lg border border-neutral-300 px-3 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#26727d]" />
+          </label>
+          <label for="edit-user-email" class="block text-sm font-medium text-[#454545]">
+            Email
+            <input id="edit-user-email" type="email" required [value]="draft.email"
+                   (input)="updateUserEditDraft({ email: $any($event.target).value })"
+                   class="mt-1 min-h-10 w-full rounded-lg border border-neutral-300 px-3 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#26727d]" />
+          </label>
+          <label for="edit-user-role" class="block text-sm font-medium text-[#454545]">
+            Role
+            <input id="edit-user-role" type="text" required [value]="draft.role"
+                   (input)="updateUserEditDraft({ role: $any($event.target).value })"
+                   class="mt-1 min-h-10 w-full rounded-lg border border-neutral-300 px-3 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#26727d]" />
+          </label>
+          <label for="edit-user-department" class="block text-sm font-medium text-[#454545]">
+            Department
+            <input id="edit-user-department" type="text" [value]="draft.department"
+                   (input)="updateUserEditDraft({ department: $any($event.target).value })"
+                   class="mt-1 min-h-10 w-full rounded-lg border border-neutral-300 px-3 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#26727d]" />
+          </label>
+          <div class="flex justify-end gap-2 pt-2">
+            <button type="button" class="min-h-10 rounded-md border border-neutral-200 px-4 text-sm text-[#555] hover:bg-neutral-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#26727d]"
+                    [disabled]="savingRowAction()" (click)="cancelUserEdit()">Cancel</button>
+            <button type="submit" class="min-h-10 rounded-md bg-[#62b9c8] px-4 text-sm font-medium text-[#173c41] hover:bg-[#51acbb] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#26727d] disabled:opacity-50"
+                    [disabled]="savingRowAction()">{{ savingRowAction() ? 'Saving…' : 'Save' }}</button>
+          </div>
+        </form>
+      </section>
+    </div>
+  }
+
   @if (activeAction(); as action) {
     @if (action.id === 'export-users') {
       <p class="sr-only" role="status">{{ downloading() ? 'Exporting users…' : feedback() }}</p>
@@ -163,11 +282,11 @@
               <h2 id="bulk-dialog-title" class="text-xl font-semibold text-[#333]">{{ action.label }}</h2>
               <p class="mt-1 text-sm text-[#555]">{{ action.description }}</p>
             </div>
-            <button type="button" class="grid size-10 shrink-0 place-items-center rounded-lg text-xl text-neutral-600 hover:bg-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#26727d]" aria-label="Close dialog" (click)="closeDialog()">×</button>
+            <button type="button" class="grid size-10 shrink-0 place-items-center rounded-lg text-xl text-neutral-600 hover:bg-red-500 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#26727d]" aria-label="Close dialog" (click)="closeDialog()">×</button>
           </div>
 
           <div class="mt-6">
-            <label for="bulk-excel-file" class="mb-2 block text-sm font-medium text-[#333]">Choose an Excel File <span aria-hidden="true">*</span></label>
+            <label for="bulk-excel-file" class="mb-2 block text-sm font-medium text-[#333]">Choose an Excel File <span aria-hidden="true" style="color : red;">*</span></label>
             <input id="bulk-excel-file" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                    class="block min-h-12 w-full rounded-lg border border-neutral-300 bg-white p-2 text-sm text-[#333] file:mr-3 file:min-h-8 file:rounded-md file:border-0 file:bg-[#edf7f8] file:px-3 file:font-medium file:text-[#26727d] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#26727d]"
                    [attr.aria-describedby]="feedback() ? 'bulk-upload-feedback' : 'bulk-file-hint'"

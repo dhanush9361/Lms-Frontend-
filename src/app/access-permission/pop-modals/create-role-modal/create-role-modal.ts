@@ -16,8 +16,17 @@ export class CreateRoleModal {
  
   readonly cancelled = output<void>();
   readonly continued = output<void>();
+
+  continue(): void {
+    const roleName = this.form().controls['roleName'];
+    if (this.form().invalid) {
+      this.form().markAllAsTouched();
+      return;
+    }
+    if (roleName.valid) this.continued.emit();
+  }
  
-  // Suggestions only (datalist); any unique name of at least 4 letters/spaces is accepted.
+  // Suggestions only (datalist); names are validated by the shared role form.
   readonly acceptedRoleNames = ['Admin', 'Instructor', 'Learner', 'Content Manager', 'Support Staff'];
 }
  

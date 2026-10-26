@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, computed, inject, signal } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
+import { AuthService, AdminPage, AdminSummary } from '../../../services/auth';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
 import { BulkUserOperation, BulkUserRequestError, BulkUserService, ManagedUser } from '../../../services/bulk-user.service';
@@ -17,7 +18,14 @@ interface UserActionDraft {
   suspendUser: boolean;
   startDate: string;
   endDate: string;
-  deleteUser: boolean;
+}
+
+interface UserEditDraft {
+  user: ManagedUser;
+  username: string;
+  email: string;
+  role: string;
+  department: string;
 }
 
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
@@ -30,6 +38,7 @@ const MAX_FILE_BYTES = 10 * 1024 * 1024;
 })
 export class BulkUser implements OnInit {
   private readonly bulkUsers = inject(BulkUserService);
+  private readonly authService = inject(AuthService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   private readonly destroyRef = inject(DestroyRef);
@@ -59,7 +68,9 @@ export class BulkUser implements OnInit {
     this.filteredUsers().length > 0 && this.filteredUsers().every(user => this.selectedUserIds().has(user.id)),
   );
   protected readonly loadingUsers = signal(false);
+  protected readonly rowActionMenuUserId = signal<number | null>(null);
   protected readonly rowActionDraft = signal<UserActionDraft | null>(null);
+  protected readonly userEditDraft = signal<UserEditDraft | null>(null);
   protected readonly savingRowAction = signal(false);
   protected readonly selectedFile = signal<File | null>(null);
   protected readonly uploading = signal(false);
@@ -77,21 +88,43 @@ export class BulkUser implements OnInit {
       .subscribe(params => this.searchTerm.set(params.get('search') ?? ''));
   }
 
-  protected loadUsers(): void {
-    this.loadingUsers.set(true);
-    this.bulkUsers.listUsers().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: users => {
-        this.users.set(users);
-        this.loadingUsers.set(false);
-        const ids = new Set(users.map(user => user.id));
-        this.selectedUserIds.update(selected => new Set([...selected].filter(id => ids.has(id))));
-      },
-      error: (error: BulkUserRequestError) => {
-        this.loadingUsers.set(false);
-        this.handleRequestError(error);
-      },
-    });
-  }
+
+
+protected loadUsers(): void {
+  this.loadingUsers.set(true);
+
+  this.authService.listAdmins({
+    page: 0,
+    size: 100
+  }).pipe(
+    takeUntilDestroyed(this.destroyRef)
+  ).subscribe({
+    next: (response: AdminPage) => {
+      const users: ManagedUser[] = response.content.map(
+        (admin: AdminSummary): ManagedUser => ({
+          id: admin.id,
+          username: admin.username,
+          role: admin.role,
+          email: admin.email,
+          status: admin.status,
+          department: '—',
+          suspensionStartDate: null,
+          suspensionEndDate: null
+        })
+      );
+
+      this.users.set(users);
+      this.selectedUserIds.set(new Set());
+      this.loadingUsers.set(false);
+    },
+
+    error: (error: BulkUserRequestError) => {
+      this.loadingUsers.set(false);
+      this.handleRequestError(error);
+    }
+  });
+}
+
 
   protected toggleAllVisible(checked: boolean): void {
     const visible = this.filteredUsers().map(user => user.id);
@@ -117,21 +150,124 @@ export class BulkUser implements OnInit {
     if (action) this.openAction(action);
   }
 
-  protected openRowActions(user: ManagedUser): void {
-    this.rowActionTrigger = this.document.activeElement instanceof HTMLElement ? this.document.activeElement : null;
+  protected toggleRowActionMenu(user: ManagedUser): void {
+    if (this.rowActionMenuUserId() === user.id) {
+      this.rowActionMenuUserId.set(null);
+      this.rowActionTrigger?.focus();
+      return;
+    }
+    this.rowActionTrigger = this.document.getElementById(`row-actions-${user.id}`);
+    this.rowActionMenuUserId.set(user.id);
+    queueMicrotask(() => this.document.getElementById(`row-action-edit-${user.id}`)?.focus());
+  }
+
+  protected onActionMenuKeydown(event: KeyboardEvent): void {
+    if (event.key !== 'Escape') return;
+    event.preventDefault();
+    this.rowActionMenuUserId.set(null);
+    this.rowActionTrigger?.focus();
+  }
+
+  protected openUserSettings(user: ManagedUser): void {
+    this.rowActionTrigger = this.document.getElementById(`row-actions-${user.id}`);
+    this.rowActionMenuUserId.set(null);
     this.rowActionDraft.set({
       user,
       status: user.status === 'Inactive' ? 'Inactive' : 'Active',
       suspendUser: Boolean(user.suspensionStartDate || user.suspensionEndDate),
       startDate: user.suspensionStartDate ?? '',
       endDate: user.suspensionEndDate ?? '',
-      deleteUser: false,
     });
-    queueMicrotask(() => this.document.getElementById(`suspend-user-${user.id}`)?.focus());
+    queueMicrotask(() => this.document.getElementById(`close-user-settings-${user.id}`)?.focus());
+  }
+
+  protected openUserEdit(user: ManagedUser): void {
+    this.rowActionTrigger = this.document.getElementById(`row-actions-${user.id}`);
+    this.rowActionMenuUserId.set(null);
+    this.userEditDraft.set({
+      user,
+      username: user.username,
+      email: user.email,
+      role: user.role,
+      department: user.department === '—' ? '' : user.department,
+    });
+    queueMicrotask(() => this.document.getElementById('edit-user-username')?.focus());
+  }
+
+  protected cancelUserEdit(): void {
+    this.userEditDraft.set(null);
+    this.rowActionTrigger?.focus();
+    this.rowActionTrigger = null;
+  }
+
+  protected onUserEditKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      this.cancelUserEdit();
+    }
+  }
+
+  protected updateUserEditDraft(changes: Partial<Omit<UserEditDraft, 'user'>>): void {
+    this.userEditDraft.update(draft => draft ? { ...draft, ...changes } : draft);
+  }
+
+  protected saveUserEdit(event: Event): void {
+    event.preventDefault();
+    const draft = this.userEditDraft();
+    if (!draft || this.savingRowAction()) return;
+    if (!draft.username.trim() || !draft.email.trim() || !draft.role.trim()) {
+      this.showFeedback('Username, email, and role are required.', true);
+      return;
+    }
+    this.savingRowAction.set(true);
+    this.bulkUsers.updateUser(draft.user.id, {
+      username: draft.username.trim(),
+      email: draft.email.trim(),
+      role: draft.role.trim(),
+      department: draft.department.trim(),
+    }).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: () => {
+        this.savingRowAction.set(false);
+        this.userEditDraft.set(null);
+        this.showFeedback('User updated successfully.', false);
+        this.rowActionTrigger = null;
+        this.document.getElementById('select-visible-users')?.focus();
+        this.loadUsers();
+      },
+      error: (error: BulkUserRequestError) => {
+        this.savingRowAction.set(false);
+        this.handleRequestError(error);
+      },
+    });
+  }
+
+  protected deleteUser(user: ManagedUser): void {
+    const confirmed = this.document.defaultView?.confirm(
+      `Delete "${user.username}"? This action cannot be undone.`,
+    ) ?? false;
+    if (!confirmed || this.savingRowAction()) return;
+
+    this.rowActionMenuUserId.set(null);
+    this.rowActionTrigger?.focus();
+    this.savingRowAction.set(true);
+    this.bulkUsers.deleteUser(user.id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: () => {
+        this.savingRowAction.set(false);
+        this.showFeedback('User deleted successfully.', false);
+        this.rowActionTrigger = null;
+        this.document.getElementById('select-visible-users')?.focus();
+        this.loadUsers();
+      },
+      error: (error: BulkUserRequestError) => {
+        this.savingRowAction.set(false);
+        this.handleRequestError(error);
+      },
+    });
   }
 
   protected cancelRowActions(): void {
     this.rowActionDraft.set(null);
+    this.rowActionMenuUserId.set(null);
     this.rowActionTrigger?.focus();
     this.rowActionTrigger = null;
   }
@@ -140,6 +276,23 @@ export class BulkUser implements OnInit {
     if (event.key === 'Escape') {
       event.preventDefault();
       this.cancelRowActions();
+      return;
+    }
+    if (event.key === 'Tab') {
+      const dialog = event.currentTarget as HTMLElement;
+      const controls = dialog.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled])');
+      const first = controls.item(0);
+      const last = controls.item(controls.length - 1);
+
+      if (!first || !last) return;
+
+      if (event.shiftKey && this.document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && this.document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
     }
   }
 
@@ -151,18 +304,15 @@ export class BulkUser implements OnInit {
       return;
     }
     this.savingRowAction.set(true);
-    const request = draft.deleteUser
-      ? this.bulkUsers.deleteUser(draft.user.id)
-      : this.bulkUsers.updateUser(draft.user.id, {
-          status: draft.status,
-          suspensionStartDate: draft.suspendUser ? draft.startDate : null,
-          suspensionEndDate: draft.suspendUser ? draft.endDate : null,
-        });
-    request.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+    this.bulkUsers.updateUser(draft.user.id, {
+      status: draft.status,
+      suspensionStartDate: draft.suspendUser ? draft.startDate : null,
+      suspensionEndDate: draft.suspendUser ? draft.endDate : null,
+    }).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: () => {
         this.savingRowAction.set(false);
         this.rowActionDraft.set(null);
-        this.showFeedback(draft.deleteUser ? 'User deleted successfully.' : 'User updated successfully.', false);
+        this.showFeedback('User updated successfully.', false);
         this.rowActionTrigger = null;
         this.document.getElementById('select-visible-users')?.focus();
         this.loadUsers();
@@ -213,6 +363,9 @@ export class BulkUser implements OnInit {
       const controls = dialog.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled])');
       const first = controls.item(0);
       const last = controls.item(controls.length - 1);
+
+      if (!first || !last) return;
+
       if (event.shiftKey && this.document.activeElement === first) {
         event.preventDefault();
         last.focus();
@@ -299,6 +452,9 @@ export class BulkUser implements OnInit {
         next: blob => {
           this.saveFile(blob, 'users.xlsx');
           this.downloading.set(false);
+          this.activeAction.set(null);
+          this.actionTrigger?.focus();
+          this.actionTrigger = null;
           this.showFeedback('User data exported successfully.', false);
         },
         error: (error: BulkUserRequestError) => {
@@ -313,8 +469,10 @@ export class BulkUser implements OnInit {
     const link = this.document.createElement('a');
     link.href = url;
     link.download = filename;
+    this.document.body.appendChild(link);
     link.click();
-    URL.revokeObjectURL(url);
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 0);
   }
 
   private clearFeedback(): void {

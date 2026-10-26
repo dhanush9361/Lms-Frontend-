@@ -10,7 +10,7 @@ import { AuthService } from '../../services/auth';
 const PASSWORD_MIN_LENGTH = 8;
 const PASSWORD_MAX_LENGTH = 16;
 const STRONG_PASSWORD_PATTERN = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).+$/;
-
+const EMOJI_PATTERN = /[\p{Extended_Pictographic}\p{Regional_Indicator}]/u;
 const passwordsMatchValidator: ValidatorFn = (group: AbstractControl): ValidationErrors | null => {
   const newPassword = group.get('newPassword')?.value;
   const confirmPassword = group.get('confirmPassword')?.value;
@@ -52,15 +52,19 @@ export class ChangePassword implements AfterViewInit {
         nonNullable: true,
         validators: [Validators.required, Validators.maxLength(128)],
       }),
-      newPassword: new FormControl('', {
-        nonNullable: true,
-        validators: [
-          Validators.required,
-          Validators.minLength(PASSWORD_MIN_LENGTH),
-          Validators.maxLength(PASSWORD_MAX_LENGTH),
-          Validators.pattern(STRONG_PASSWORD_PATTERN),
-        ],
-      }),
+     newPassword: new FormControl('', {
+  nonNullable: true,
+  validators: [
+    Validators.required,
+    Validators.minLength(PASSWORD_MIN_LENGTH),
+    Validators.maxLength(PASSWORD_MAX_LENGTH),
+    Validators.pattern(STRONG_PASSWORD_PATTERN),
+    (control: AbstractControl): ValidationErrors | null =>
+      EMOJI_PATTERN.test(control.value)
+        ? { emojiNotAllowed: true }
+        : null,
+  ],
+}),
       confirmPassword: new FormControl('', {
         nonNullable: true,
         validators: [Validators.required],

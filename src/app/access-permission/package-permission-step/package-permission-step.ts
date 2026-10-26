@@ -81,7 +81,7 @@ export class PackagePermissionStep implements OnInit {
               permissions: { create: false, read: false, update: false, delete: false },
             })),
           }));
-          this.draft.setSeedCategories(categories);
+          this.draft.setSeedCategories(categories, this.draft.editingPackageId() !== null);
           this.featuresLoaded.set(true);
         },
         error: (error) =>
@@ -109,18 +109,23 @@ export class PackagePermissionStep implements OnInit {
 
     this.submitting.set(true);
     this.formError.set('');
-    const idempotencyKey = crypto.randomUUID();
+    const request = { ...payload, permissions: this.draft.asPayloadPermissions() };
+    const editingPackageId = this.draft.editingPackageId();
+    const saveRequest = editingPackageId !== null
+      ? this.packagesApi.update(editingPackageId, request)
+      : this.packagesApi.create(request, crypto.randomUUID());
 
-    this.packagesApi
-      .create({ ...payload, permissions: this.draft.asPayloadPermissions() }, idempotencyKey)
+    saveRequest
       .pipe(finalize(() => this.submitting.set(false)))
       .subscribe({
         next: () => {
           this.draft.clearDraft();
-          this.router.navigate([PACKAGE_LIST_PATH], { state: { packageCreated: true } });
+          this.router.navigate([PACKAGE_LIST_PATH], {
+            state: editingPackageId !== null ? { packageUpdated: true } : { packageCreated: true },
+          });
         },
         error: (error) => {
-          console.error('Package creation failed:', error);
+          console.error(editingPackageId !== null ? 'Package update failed:' : 'Package creation failed:', error);
           const backendMessage =
             typeof error?.error === 'string' ? error.error : error?.error?.detail ?? error?.error?.message ?? '';
           if (error?.status === 0 || error?.status >= 500) {
@@ -128,7 +133,7 @@ export class PackagePermissionStep implements OnInit {
           } else if (error?.status === 409 || /duplicate|exists/i.test(backendMessage)) {
             this.formError.set('A package with the same name already exists');
           } else {
-            this.formError.set(backendMessage || 'Package creation failed. Please check the details and try again.');
+            this.formError.set(backendMessage || 'Package could not be saved. Please check the details and try again.');
           }
         },
       });

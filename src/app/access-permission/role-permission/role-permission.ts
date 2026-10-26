@@ -43,5 +43,29 @@ export class RolePermission {
     if (!this.isAdmin()) return;
     this.togglePermission.emit({ rowIndex, action });
   }
+
+  isModuleCategory(categoryName: string): boolean {
+    return ['Authentication', 'Content Management', 'Course Management', 'Enrollment'].includes(categoryName);
+  }
+
+  moduleCreateEnabled(categoryName: string): boolean {
+    const rows = this.permissions().filter((row) => row.categoryName === categoryName);
+    return rows.length > 0 && rows.every((row) => row.values.create);
+  }
+
+  onToggleModuleCreate(categoryName: string): void {
+    if (!this.isAdmin()) return;
+
+    const moduleRows = this.permissions()
+      .map((row, rowIndex) => ({ row, rowIndex }))
+      .filter(({ row }) => row.categoryName === categoryName);
+    const enable = !this.moduleCreateEnabled(categoryName);
+
+    for (const { row, rowIndex } of moduleRows) {
+      if (row.values.create !== enable) {
+        this.togglePermission.emit({ rowIndex, action: 'create' });
+      }
+    }
+  }
 }
  

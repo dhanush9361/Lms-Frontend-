@@ -7,6 +7,7 @@ import { map } from 'rxjs/operators';
  
 import { CreateCourseModal } from '../pop-modals/create-course-modal/create-course-modal';
 import { OrganizeSections } from '../organize-sections/organize-sections';
+import { Ebook } from '../ebook/ebook';
 import {
   ALLOWED_THUMBNAIL_TYPES,
   Course,
@@ -28,7 +29,7 @@ type DropdownName = 'filter';
 @Component({
   selector: 'app-course-management',
   // CHANGED: added OrganizeSections
-  imports: [CommonModule, ReactiveFormsModule, CreateCourseModal, OrganizeSections],
+  imports: [CommonModule, ReactiveFormsModule, CreateCourseModal, OrganizeSections, Ebook],
   templateUrl: './course-management.html',
   styleUrl: './course-management.css',
 })
@@ -50,6 +51,7 @@ export class CourseManagement {
   readonly openDropdown = signal<DropdownName | null>(null);
   // NEW: which course card's 3-dot menu is open
   readonly openCardMenuId = signal<number | null>(null);
+  readonly activityMenuCourseId = signal<number | null>(null);
   readonly successMessage = signal<string | null>(null);
   readonly permissionError = signal<string | null>(null);
  
@@ -85,6 +87,19 @@ export class CourseManagement {
   readonly modalOpen = signal(false);
   readonly editingCourse = signal<Course | null>(null);
   readonly viewingCourse = signal<Course | null>(null);
+  // Ebook popup state
+readonly ebookOpen = signal(false);
+readonly selectedEbookCourse = signal<Course | null>(null);
+
+openEbook(course: Course): void {
+  this.selectedEbookCourse.set(course);
+  this.ebookOpen.set(true);
+}
+
+closeEbook(): void {
+  this.ebookOpen.set(false);
+  this.selectedEbookCourse.set(null);
+}
   readonly categories = COURSE_CATEGORIES;
   readonly instructors = signal<{ id: number; name: string; email?: string }[]>([]);
   readonly levels = signal<CourseLevel[]>(COURSE_LEVELS);
@@ -160,6 +175,11 @@ export class CourseManagement {
     event.stopPropagation(); // otherwise the document click handler would close it immediately
     this.openCardMenuId.update(current => (current === courseId ? null : courseId));
   }
+
+  toggleActivityMenu(courseId: number, event: Event): void {
+    event.stopPropagation();
+    this.activityMenuCourseId.update(current => current === courseId ? null : courseId);
+  }
  
   selectCourseFilter(option: CourseFilter): void {
     this.courseFilter.set(option);
@@ -170,6 +190,7 @@ export class CourseManagement {
   closeFilterDropdown(): void {
     this.openDropdown.set(null);
     this.openCardMenuId.set(null); // NEW: click anywhere else closes the card menu
+    this.activityMenuCourseId.set(null);
   }
  
   // ---------- unsaved-changes guard (SRS Edge Cases #2, #3, #7) ----------
