@@ -124,7 +124,7 @@ export class AdminDashboard {
   }
 
   openSettings(): void {
-    // TODO: navigate to account/organization settings once that route exists.
+    void this.router.navigate(['/admin-dashboard/settings']);
   }
 
   onGlobalSearch(term: string): void {

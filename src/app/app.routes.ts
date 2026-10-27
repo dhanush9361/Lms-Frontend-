@@ -57,6 +57,12 @@ export const routes: Routes = [
           import('./auth/change-password/change-password').then((m) => m.ChangePassword),
         title: 'Profile',
       },
+      {
+        path: 'settings',
+        loadComponent: () =>
+          import('./profile/settings/settings').then((m) => m.Settings),
+        title: 'Subscription & Billing',
+      },
     ],
   },
 
@@ -108,6 +114,12 @@ export const routes: Routes = [
               loadComponent: () =>
                 import('./auth/change-password/change-password').then((m) => m.ChangePassword),
               title: 'Profile',
+            },
+            {
+              path: 'settings',
+              loadComponent: () =>
+                import('./profile/settings/settings').then((m) => m.Settings),
+              title: 'Subscription & Billing',
             },
 
     ],

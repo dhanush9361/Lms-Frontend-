@@ -1,18 +1,4 @@
 <div class="relative min-h-dvh overflow-x-clip rounded-[22px] bg-[#f5f5f5] font-sans text-[#4d4d4d]">
-  @if (success()) {
-  <div
-    class="fixed left-1/2 top-6 z-[70] min-w-[150px] max-w-[40vw] -translate-x-1/2 rounded-xl bg-[#62b9c8] px-5 py-3 text-center text-sm font-medium text-white shadow-lg"
-    role="status">
-    {{ success() }}
-  </div>
-  }
-  @if (actionError() && !dialog()) {
-  <div
-    class="fixed left-1/2 top-6 z-[70] min-w-[150px] max-w-[40vw] -translate-x-1/2 rounded-xl bg-red-600 px-5 py-3 text-center text-sm font-medium text-white shadow-lg"
-    role="alert">
-    {{ actionError() }}
-  </div>
-  }
   @if (permissionStep()) {
   <app-role-permission [role]="selectedRole()" [permissions]="permissions()" [actions]="actions"
     [isEditing]="editingId() !== null" [isAdmin]="isAdmin()" [submitting]="submitting()"
@@ -33,7 +19,22 @@
     </nav>
   </header> -->
  
-  <main class="relative z-10 px-4 pb-6 pt-2 md:px-[4%]">
+  @if (success()) {
+  <div
+    class="fixed left-1/2 top-6 z-[70] min-w-[150px] max-w-[40vw] -translate-x-1/2 rounded-xl bg-[#62b9c8] px-5 py-3 text-center text-sm font-medium text-white shadow-lg"
+    role="status">
+    {{ success() }}
+  </div>
+  }
+  @if (actionError() && !dialog()) {
+  <div
+    class="fixed left-1/2 top-6 z-[70] min-w-[150px] max-w-[40vw] -translate-x-1/2 rounded-xl bg-red-600 px-5 py-3 text-center text-sm font-medium text-white shadow-lg"
+    role="alert">
+    {{ actionError() }}
+  </div>
+  }
+ 
+  <main class="relative z-10 px-5 pb-6 pt-2 md:px-[8.5%]">
     <div
       class="sticky top-16 z-30 -mx-5 flex flex-wrap items-center gap-3 bg-[#f5f5f5] px-5 py-2  md:-mx-[8.5%] md:px-[8.5%]">
       <label class="flex h-10 w-44  items-center rounded-full bg-white px-4 text-xs">
@@ -133,17 +134,14 @@
         </button>
       </div>
       } @else {
-     <div class="max-h-[600px] overflow-auto" tabindex="0" aria-label="Role list. Scroll to view more roles.">
-        <table class="w-full min-w-[1100px] border-collapse text-left text-xs">
+      <div class="max-h-[470px] overflow-auto" tabindex="0" aria-label="Role list. Scroll to view more roles.">
+        <table class="w-full min-w-[760px] border-collapse text-left text-xs">
           <thead class="sticky top-0 z-10 bg-white">
             <tr class="h-[62px] border-b border-[#ededed]">
               <th class="w-[20%] px-8 font-medium">Role Name</th>
-              <th class="w-[14%] px-4 font-medium">User Name</th>
-              <th class="w-[20%] px-4 font-medium">Email</th>
               <th class="w-[14%] px-4 font-medium">Assigned Users</th>
               <th class="w-[14%] px-4 font-medium">Status</th>
               <th class="w-[14%] px-4 font-medium">Updated</th>
-              <th class="whitespace-nowrap px-4 font-medium">Last Active</th>
               <th class="w-[6%] px-4 font-medium">Action</th>
             </tr>
           </thead>
@@ -157,12 +155,9 @@
                     role.name.charAt(0) }}</span><span>{{ role.name }}</span>
                 </div>
               </td>
-              <td class="px-4">Not available</td>
-              <td class="max-w-[220px] break-all px-4">Not available</td>
               <td class="px-4" [attr.data-assigned-users]="role.id">{{ assignedUserCount(role) }}</td>
               <td class="px-4">{{ role.status }}</td>
               <td class="px-4">{{ relativeLastActive(role) }}</td>
-              <td class="whitespace-nowrap px-4">Not available</td>
               <td class="px-4">
                 <div class="flex items-center gap-5">
  
@@ -194,7 +189,7 @@
             </tr>
             } @empty {
             <tr>
-              <td colspan="8" class="h-[340px] text-center text-sm text-[#888]">
+              <td colspan="5" class="h-[340px] text-center text-sm text-[#888]">
                 No roles match your search.
               </td>
             </tr>

@@ -154,6 +154,14 @@
               type="button"
               role="menuitem"
               class="block w-full px-4 py-2.5 text-left text-xs text-[#555] transition hover:bg-[#f6f6f6]"
+              (click)="openSettings(); closeAccountMenu()"
+            >
+              Settings
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              class="block w-full px-4 py-2.5 text-left text-xs text-[#555] transition hover:bg-[#f6f6f6]"
               (click)="logout()"
             >
               Log out

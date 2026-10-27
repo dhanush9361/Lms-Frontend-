@@ -1,8 +1,12 @@
 <div class="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-black/25 p-5 backdrop-blur-[3px]" (click)="cancelled.emit()">
   <section class="w-full max-w-[600px] rounded-2xl bg-white px-8 py-6 shadow-[0_12px_35px_rgba(0,0,0,.25)] 2xl:max-w-[720px] 2xl:rounded-[20px] 2xl:px-9 2xl:py-8"
             role="dialog" aria-modal="true" aria-labelledby="create-package-title" (click)="$event.stopPropagation()">
-    <h2 id="create-package-title" class="text-xl font-semibold text-[#505050] 2xl:text-[26px]">Create a new package</h2>
-    <p class="mt-1.5 text-xs text-[#606060] 2xl:mt-2 2xl:text-[14px]">Add package details and configure the features and limits.</p>
+    <h2 id="create-package-title" class="text-xl font-semibold text-[#505050] 2xl:text-[26px]">
+      {{ editing ? 'Edit package' : 'Create a new package' }}
+    </h2>
+    <p class="mt-1.5 text-xs text-[#606060] 2xl:mt-2 2xl:text-[14px]">
+      {{ editing ? 'Update package details and configure the features and limits.' : 'Add package details and configure the features and limits.' }}
+    </p>
 
     <form class="mt-5 2xl:mt-7" [formGroup]="form" (ngSubmit)="onSubmit()" novalidate>
       <div class="grid grid-cols-[1.3fr_1fr] gap-5">
@@ -19,7 +23,7 @@
           }
         </div>
         <div class="relative">
-          <select formControlName="availablePackage" aria-label="Available Package"
+          <select formControlName="availablePackage" aria-label="Available Package" (change)="updateDescription()"
                   [attr.aria-invalid]="form.controls.availablePackage.touched && form.controls.availablePackage.invalid"
                   class="h-12 w-full rounded-lg border-0 bg-[#f6f6f6] px-4 text-xs outline-none 2xl:h-[62px] 2xl:rounded-xl 2xl:px-5 2xl:text-sm">
             <option value="" disabled>Available Package*</option>

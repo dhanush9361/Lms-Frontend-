@@ -256,6 +256,29 @@ export class PackageDraftService {
     );
   }
 
+  toggleCategory(categoryId: string): void {
+    this._categories.update((categories) =>
+      categories.map((category) => {
+        if (category.id !== categoryId) return category;
+
+        const enable = !category.features.every((feature) =>
+          Object.values(feature.permissions).every(Boolean),
+        );
+        const features = category.features.map((feature) => ({
+          ...feature,
+          permissions: {
+            create: enable,
+            read: enable,
+            update: enable,
+            delete: enable,
+          },
+        }));
+
+        return { ...category, enabled: enable, features };
+      }),
+    );
+  }
+
   hasAnyPermissionEnabled(): boolean {
     return this._categories().some((category) =>
       category.features.some((feature) => Object.values(feature.permissions).some(Boolean)));

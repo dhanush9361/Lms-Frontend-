@@ -54,7 +54,7 @@ export class SuperAdminDashboard {
   }
 
   openSettings(): void {
-    // TODO: navigate to account/organization settings once that route exists.
+    void this.router.navigate(['/super-admin-dashboard/settings']);
   }
 
   onGlobalSearch(term: string): void {

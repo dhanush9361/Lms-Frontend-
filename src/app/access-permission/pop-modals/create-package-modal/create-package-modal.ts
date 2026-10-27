@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, EventEmitter, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
 import { ReactiveFormsModule } from '@angular/forms';
 import { buildPackageDetailsForm, wordCountOf } from '../forms/package-form';
 import { AVAILABLE_PACKAGE_OPTIONS, PackagePayload, PackageRecord } from '../../../services/package.service';
@@ -11,17 +11,41 @@ import { AVAILABLE_PACKAGE_OPTIONS, PackagePayload, PackageRecord } from '../../
   styleUrl: './create-package-modal.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class CreatePackageModal {
+export class CreatePackageModal implements OnChanges {
   /** Existing packages, for the client-side duplicate-name check. */
   @Input({ required: true }) existingPackages: readonly PackageRecord[] = [];
+  @Input() editing: PackageRecord | null = null;
   @Output() readonly cancelled = new EventEmitter<void>();
   @Output() readonly next = new EventEmitter<PackagePayload>();
 
   protected readonly availablePackageOptions = AVAILABLE_PACKAGE_OPTIONS;
-  protected readonly form = buildPackageDetailsForm(() => this.existingPackages);
+  protected readonly form = buildPackageDetailsForm(
+    () => this.existingPackages,
+    () => this.editing?.id ?? null,
+  );
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['editing']) {
+      this.reset();
+    }
+
+    if (changes['existingPackages'] && !changes['editing']) {
+      this.form.controls.name.updateValueAndValidity({ emitEvent: false });
+    }
+  }
 
   protected descriptionWordCount(): number {
     return wordCountOf(this.form.controls.description.value);
+  }
+
+  protected updateDescription(): void {
+    const descriptions: Partial<Record<PackagePayload['availablePackage'], string>> = {
+      Basic: 'Best for Beginners',
+      Standard: 'Essential Features for Growing Teams',
+      Premium: 'Advanced Features for Growing Business',
+    };
+    const availablePackage = this.form.controls.availablePackage.value as PackagePayload['availablePackage'];
+    this.form.controls.description.setValue(descriptions[availablePackage] ?? '');
   }
 
   protected onSubmit(): void {
@@ -43,7 +67,20 @@ export class CreatePackageModal {
 
   /** Called by the container after a successful create, or on reopen. */
   reset(): void {
-    this.form.reset();
+    const item = this.editing;
+    this.form.reset(
+      item
+        ? {
+            name: item.name,
+            availablePackage: item.availablePackage,
+            description: item.description ?? '',
+            price: item.price,
+            billingCycle: item.billingCycle,
+            userLimit: item.userLimit,
+            storageLimit: item.storageLimit,
+          }
+        : undefined,
+    );
   }
 
   /**

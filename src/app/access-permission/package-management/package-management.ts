@@ -1,12 +1,10 @@
-import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import { Component, HostListener, computed, inject, OnInit, signal } from '@angular/core';
 import { CurrencyPipe } from '@angular/common';
-import { ReactiveFormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { finalize, map, of, switchMap } from 'rxjs';
 import { CreatePackageModal } from '../pop-modals/create-package-modal/create-package-modal';
 import { AssignPackageModal, PackageAssignRequest } from '../pop-modals/assign-package-modal/assign-package-modal';
-import { buildPackageDetailsForm, wordCountOf } from '../pop-modals/forms/package-form';
-import { AVAILABLE_PACKAGE_OPTIONS, PackagePayload, PackageRecord, PackageService, PackageDraftService } from '../../services/package.service';
+import { PackagePayload, PackageRecord, PackageService, PackageDraftService } from '../../services/package.service';
 import { AdminSummary, AuthService } from '../../services/auth';
 
 export interface AdminPackageRow {
@@ -15,7 +13,6 @@ export interface AdminPackageRow {
 }
 
 /** Absolute paths, matching app.routes.ts (children of 'super-admin-dashboard'). */
-const PACKAGE_LIST_PATH = '/super-admin-dashboard/package';
 const PACKAGE_PERMISSIONS_PATH = '/super-admin-dashboard/package/create/permissions';
 
 const serverActionErrorMessage =
@@ -28,9 +25,12 @@ function extractBackendMessage(error: { error?: { detail?: string; message?: str
   return typeof error.error === 'string' ? error.error : error.error?.detail ?? error.error?.message ?? '';
 }
 
+type DropdownName = 'filter';
+type StatusFilter = 'All' | 'Active' | 'Inactive';
+
 @Component({
   selector: 'app-package-management',
-  imports: [CurrencyPipe, ReactiveFormsModule, CreatePackageModal, AssignPackageModal],
+  imports: [CurrencyPipe, CreatePackageModal, AssignPackageModal],
   templateUrl: './package-management.html',
   styleUrl: './package-management.css',
 })
@@ -45,44 +45,32 @@ export class PackageManagement implements OnInit {
   protected readonly loading = signal(true);
   protected readonly loadError = signal('');
   protected readonly search = signal('');
-  protected readonly statusFilter = signal<'All' | 'Active' | 'Inactive'>('All');
+  protected readonly statusFilter = signal<StatusFilter>('All');
   protected readonly totalElements = signal(0);
   protected readonly page = signal(0);
   protected readonly pageSize = 20;
 
   protected readonly filteredRows = computed(() => this.rows());
 
+  // Filter dropdown UI state
+  protected readonly openDropdown = signal<DropdownName | null>(null);
+  protected readonly filterOptions: readonly StatusFilter[] = ['All', 'Active', 'Inactive'];
+
   protected readonly packages = signal<PackageRecord[]>([]);
-  /**
-   * Surfaces a failed loadAllPackagesForDialogs() call instead of silently
-   * leaving the Assign modal with an empty package dropdown and no
-   * indication why.
-   */
   protected readonly packagesLoadError = signal('');
-  /**
-   * Tracks whether loadAllPackagesForDialogs() is currently in-flight, so
-   * callers can distinguish "still loading" from "loaded and genuinely
-   * empty" instead of flashing a false "No packages available" state.
-   */
   protected readonly packagesLoading = signal(false);
 
-  /**
-   * Full admin roster used ONLY by the Assign modal's admin picker, for the
-   * case where Assign is opened from the header button (no row context).
-   * Loaded lazily — only when openAssignPackagePicker() actually needs it —
-   * so it doesn't add an extra request to every page load.
-   */
   protected readonly admins = signal<AdminSummary[]>([]);
   protected readonly adminsLoading = signal(false);
   protected readonly adminsLoadError = signal('');
 
-  // Create flow
+  // Create / Edit flow — ONE modal (CreatePackageModal) handles both.
+  // editingPackage() === null  -> create mode
+  // editingPackage() !== null  -> edit mode (modal prefilled with this package)
   protected readonly createDialogOpen = signal(false);
+  protected readonly editingPackage = signal<PackageRecord | null>(null);
 
-  // Assign flow ("Update package" in the UI) — assigningAdmin() is null
-  // when opened from the header button (no row context yet); the modal
-  // shows an admin search picker in that case. It's set to a specific
-  // admin when opened from a row's popover.
+  // Assign flow ("Update package" in the UI)
   protected readonly assignDialogOpen = signal(false);
   protected readonly assigningAdmin = signal<AdminSummary | null>(null);
 
@@ -91,27 +79,30 @@ export class PackageManagement implements OnInit {
   protected readonly formError = signal('');
   protected readonly successMessage = signal('');
 
-  /**
-   * id of the admin row whose kebab (⋮) action menu is currently open.
-   * Only one row's popover can be open at a time. Track by admin.id (not
-   * package.id) since Assign rows have no package yet but still need a
-   * menu identity.
-   */
   protected readonly openActionMenuId = signal<number | null>(null);
-  /** Tracks an in-flight delete so the row's delete button can show a busy state and block double-clicks. */
   protected readonly deletingPackageId = signal<number | null>(null);
   protected readonly viewingPackage = signal<PackageRecord | null>(null);
-  protected readonly editingPackage = signal<PackageRecord | null>(null);
-  protected readonly availablePackageOptions = AVAILABLE_PACKAGE_OPTIONS;
-  protected readonly editForm = buildPackageDetailsForm(
-    () => this.packages(),
-    () => this.editingPackage()?.id ?? null,
-  );
 
   ngOnInit(): void {
     this.loadPackages();
     this.loadAllPackagesForDialogs();
     this.flashSuccessIfReturningFromPermissionStep();
+  }
+
+  // ---- Filter dropdown (UI only) -----------------------------------------------------------
+
+  protected toggleDropdown(): void {
+    this.openDropdown.update((current) => (current === 'filter' ? null : 'filter'));
+  }
+
+  protected selectFilter(option: StatusFilter): void {
+    this.onFilter(option);
+    this.openDropdown.set(null);
+  }
+
+  @HostListener('document:click')
+  protected closeFilterDropdown(): void {
+    this.openDropdown.set(null);
   }
 
   // ---- List (Admin + Package) -----------------------------------------------------------
@@ -160,19 +151,12 @@ export class PackageManagement implements OnInit {
     this.loadPackages();
   }
 
-  protected onFilter(value: 'All' | 'Active' | 'Inactive'): void {
+  protected onFilter(value: StatusFilter): void {
     this.statusFilter.set(value);
     this.page.set(0);
     this.loadPackages();
   }
 
-  /**
-   * Loads the full package catalog used by the Assign modal's dropdown.
-   * Errors are surfaced via packagesLoadError() instead of being swallowed,
-   * and in-flight state is tracked via packagesLoading() so callers
-   * (openAssignDialog / openAssignPackagePicker) can tell "still loading"
-   * apart from "loaded and empty" or "failed".
-   */
   private loadAllPackagesForDialogs(): void {
     this.packagesLoadError.set('');
     this.packagesLoading.set(true);
@@ -194,18 +178,10 @@ export class PackageManagement implements OnInit {
       });
   }
 
-  /** Lets the Assign modal offer a manual retry without a full page reload. */
   protected retryLoadPackagesForDialogs(): void {
     this.loadAllPackagesForDialogs();
   }
 
-  /**
-   * Loads the full admin roster for the Assign modal's admin picker. Only
-   * called when Assign is opened WITHOUT row context (header button) — a
-   * row-triggered Assign already knows its admin and never needs this.
-   * Kept separate from loadPackages() (which is paginated/filtered for the
-   * table) since the picker needs the unfiltered full list.
-   */
   private loadAllAdminsForDialog(): void {
     this.adminsLoadError.set('');
     this.adminsLoading.set(true);
@@ -227,15 +203,13 @@ export class PackageManagement implements OnInit {
       });
   }
 
-  // ---- Row action menu (delete / assign) ----------------------------------------
+  // ---- Row action menu ----------------------------------------
 
-  /** Toggles the kebab popover for a given admin row; opening one closes any other. */
   protected toggleActionMenu(adminId: number, event: MouseEvent): void {
     event.stopPropagation();
     this.openActionMenuId.set(this.openActionMenuId() === adminId ? null : adminId);
   }
 
-  /** Closes the open popover — bound to a full-screen backdrop so an outside click dismisses it. */
   protected closeActionMenu(): void {
     this.openActionMenuId.set(null);
   }
@@ -250,62 +224,16 @@ export class PackageManagement implements OnInit {
     this.viewingPackage.set(null);
   }
 
+  /** Row "Edit" button: just opens the shared create/edit modal in edit mode. */
   protected openEditPackage(item: PackageRecord | null, event: MouseEvent): void {
     event.stopPropagation();
     this.closeActionMenu();
     if (!item) return;
-
     this.formError.set('');
     this.editingPackage.set(item);
-    this.editForm.reset({
-      name: item.name,
-      availablePackage: item.availablePackage,
-      description: item.description ?? '',
-      price: item.price,
-      billingCycle: item.billingCycle,
-      userLimit: item.userLimit,
-      storageLimit: item.storageLimit,
-    });
+    this.createDialogOpen.set(true);
   }
 
-  protected closeEditPackage(): void {
-    this.editingPackage.set(null);
-    this.editForm.reset();
-    this.formError.set('');
-  }
-
-  protected editDescriptionWordCount(): number {
-    return wordCountOf(this.editForm.controls.description.value);
-  }
-
-  protected nextToEditPermissions(): void {
-    const item = this.editingPackage();
-    this.editForm.markAllAsTouched();
-    if (!item || this.editForm.invalid) return;
-
-    this.formError.set('');
-    const value = this.editForm.getRawValue();
-    const payload: PackagePayload = {
-      name: value.name.trim(),
-      availablePackage: value.availablePackage as PackagePayload['availablePackage'],
-      description: value.description.trim() || null,
-      price: value.price!,
-      billingCycle: value.billingCycle as PackagePayload['billingCycle'],
-      userLimit: value.userLimit!,
-      storageLimit: value.storageLimit,
-      permissions: item.permissions,
-    };
-
-    this.draft.startEditDraft(item.id, payload);
-    this.editingPackage.set(null);
-    this.editForm.reset();
-    void this.router.navigate([PACKAGE_PERMISSIONS_PATH]);
-  }
-
-  /**
-   * Delete action from the popover. Confirms first (destructive, no undo),
-   * then calls PackageService.delete(id).
-   */
   protected deletePackageFromMenu(item: PackageRecord, event: MouseEvent): void {
     event.stopPropagation();
     this.closeActionMenu();
@@ -328,31 +256,35 @@ export class PackageManagement implements OnInit {
       });
   }
 
-  // ---- Create -----------------------------------------------------------
+  // ---- Create / Edit (shared modal) -----------------------------------------------------------
 
   protected openCreateDialog(): void {
     this.formError.set('');
+    this.editingPackage.set(null);
     this.createDialogOpen.set(true);
   }
 
   protected closeCreateDialog(): void {
     if (this.submitting()) return;
     this.createDialogOpen.set(false);
+    this.editingPackage.set(null);
   }
 
+  /** "Next" from the modal: starts a create draft, or an edit draft when editing. */
   protected onCreateDetailsSubmitted(payload: PackagePayload): void {
-    this.draft.startDraft(payload);
+    const editing = this.editingPackage();
+    if (editing) {
+      this.draft.startEditDraft(editing.id, payload);
+    } else {
+      this.draft.startDraft(payload);
+    }
     this.createDialogOpen.set(false);
-    // Absolute path — the route lives under 'super-admin-dashboard' in app.routes.ts.
-    this.router.navigate([PACKAGE_PERMISSIONS_PATH]);
+    this.editingPackage.set(null);
+    void this.router.navigate([PACKAGE_PERMISSIONS_PATH]);
   }
 
   // ---- Assign ("Update package") -----------------------------------------------------------
 
-  /**
-   * Row entry point (kebab → "+" icon). Admin is already known, so the
-   * modal renders a readonly email and just needs a package chosen.
-   */
   protected openAssignDialog(admin: AdminSummary): void {
     this.formError.set('');
     this.assigningAdmin.set(admin);
@@ -362,20 +294,15 @@ export class PackageManagement implements OnInit {
     }
   }
 
-  /**
-   * Header entry point ("Update Package" button). No row context yet, so
-   * assigningAdmin() stays null and the modal shows a searchable admin
-   * picker instead of a readonly email. Lazily loads both the package list
-   * and the admin roster if either hasn't been fetched yet.
-   */
-  protected openAssignPackagePicker(): void {
+    protected openAssignPackagePicker(): void {
     this.formError.set('');
     this.assigningAdmin.set(null);
     this.assignDialogOpen.set(true);
     if (!this.packages().length && !this.packagesLoading()) {
       this.loadAllPackagesForDialogs();
     }
-    if (!this.admins().length && !this.adminsLoading()) {
+    // Always refresh: another assignment/edit may have changed admins' packages since the last load.
+    if (!this.adminsLoading()) {
       this.loadAllAdminsForDialog();
     }
   }
@@ -386,7 +313,6 @@ export class PackageManagement implements OnInit {
     this.assigningAdmin.set(null);
   }
 
-  /** Handler for AssignPackageModal's `saved` output (email + packageId — email is either the fixed row admin's or the one picked in the header-flow search combobox). */
   protected onAssignSubmitted({ email, packageId }: PackageAssignRequest): void {
     if (this.submitting()) return;
 
@@ -396,10 +322,15 @@ export class PackageManagement implements OnInit {
       .assignToUser({ emailId: email, packageId })
       .pipe(finalize(() => this.submitting.set(false)))
       .subscribe({
-        next: () => {
+               next: () => {
+          // Keep the picker's admin list in sync so reopening it shows the NEW package.
+          this.admins.update((list) =>
+            list.map((a) => (a.email.toLowerCase() === email.toLowerCase() ? { ...a, packageId } : a)),
+          );
           this.assignDialogOpen.set(false);
           this.assigningAdmin.set(null);
           this.loadPackages();
+          this.loadAllAdminsForDialog();
           this.flashSuccess('Package assigned successfully.');
         },
         error: (error) => this.handleSaveError(error, 'Package assignment failed. Please try again.'),
@@ -422,21 +353,17 @@ export class PackageManagement implements OnInit {
   }
 
   /**
-   * PackagePermissionStep should navigate back with:
-   *   this.router.navigate(['/super-admin-dashboard/package'], { state: { packageCreated: true } });
-   * After flashing, we clear the flag from history.state so a browser
-   * refresh doesn't show the success message again.
+   * PackagePermissionStep navigates back with
+   *   { state: { packageCreated: true } }  after create, or
+   *   { state: { packageUpdated: true } }  after edit.
    */
   private flashSuccessIfReturningFromPermissionStep(): void {
     const state = this.router.getCurrentNavigation()?.extras.state
       ?? (history.state as { packageCreated?: boolean; packageUpdated?: boolean } | undefined);
-    if (state?.packageCreated) {
-      this.flashSuccess('Package created successfully.');
-      // Keep Angular's own keys (e.g. navigationId), drop only our flag.
-      history.replaceState({ ...history.state, packageCreated: undefined }, '');
-    } else if (state?.packageUpdated) {
-      this.flashSuccess('Package updated successfully.');
-      history.replaceState({ ...history.state, packageUpdated: undefined }, '');
+    if (state?.packageCreated || state?.packageUpdated) {
+      this.flashSuccess(state.packageUpdated ? 'Package updated successfully.' : 'Package created successfully.');
+      history.replaceState({ ...history.state, packageCreated: undefined, packageUpdated: undefined }, '');
+      this.loadAllPackagesForDialogs();
     }
   }
 

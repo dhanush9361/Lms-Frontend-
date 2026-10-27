@@ -1,4 +1,3 @@
-import { HttpErrorResponse } from '@angular/common/http';
 import { Component, HostListener, OnInit, computed, inject, signal } from '@angular/core';
 import { FormBuilder, FormGroup } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -62,7 +61,6 @@ export class RoleManagement implements OnInit {
   readonly selectedRole = signal<Role | null>(null);
   readonly permissions = signal<PermissionRow[]>([]);
   readonly editingId = signal<number | null>(null);
-  private readonly originalRoleSnapshot = signal<string | null>(null);
  
   readonly submitting = signal(false);
   readonly actionError = signal<string | null>(null);
@@ -97,15 +95,9 @@ export class RoleManagement implements OnInit {
   private readonly hasSelectedPermission = computed(() =>
     this.permissions().some((row) => this.actions.some((action) => row.values[action])),
   );
-  private readonly hasRoleChanges = computed(() => {
-    const role = this.selectedRole();
-    const originalSnapshot = this.originalRoleSnapshot();
-    return role !== null && originalSnapshot !== null &&
-      this.createRoleSnapshot(role, this.permissions()) !== originalSnapshot;
-  });
  
   readonly canCreateRole = computed(() => this.hasSelectedPermission() && !this.submitting());
-  readonly canUpdateRole = computed(() => this.hasRoleChanges() && !this.submitting());
+  readonly canUpdateRole = computed(() => this.hasSelectedPermission() && !this.submitting());
  
   ngOnInit(): void {
     this.loadRoles();
@@ -189,7 +181,6 @@ export class RoleManagement implements OnInit {
   openRole(): void {
     this.roleForm.reset({ roleName: '' });
     this.editingId.set(null);
-    this.originalRoleSnapshot.set(null);
     this.actionError.set(null);
     this.dialog.set('role');
   }
@@ -235,11 +226,9 @@ export class RoleManagement implements OnInit {
   }
  
   private enterPermissionScreen(role: Role): void {
-    const permissionRows = this.buildPermissionRows(this.features(), role.permissions);
     this.selectedRole.set(role);
     this.editingId.set(role.id);
-    this.permissions.set(permissionRows);
-    this.originalRoleSnapshot.set(this.createRoleSnapshot(role, permissionRows));
+    this.permissions.set(this.buildPermissionRows(this.features(), role.permissions));
     this.actionError.set(null);
     this.permissionStep.set(true);
   }
@@ -363,12 +352,9 @@ export class RoleManagement implements OnInit {
       this.roleForm.markAllAsTouched();
       return;
     }
-    const returningToCurrentPermissions = this.permissionStep();
     this.selectedRole.set(null);
     this.editingId.set(null);
-    if (!returningToCurrentPermissions) {
-      this.permissions.set(this.buildPermissionRows(this.features()));
-    }
+    this.permissions.set(this.buildPermissionRows(this.features()));
     this.actionError.set(null);
     this.dialog.set(null);
     this.permissionStep.set(true);
@@ -379,15 +365,11 @@ export class RoleManagement implements OnInit {
     this.selectedRole.set(null);
     this.editingId.set(null);
     this.permissions.set([]);
-    this.originalRoleSnapshot.set(null);
     this.actionError.set(null);
   }
  
   saveRole(): void {
-    if (this.submitting()) return;
-
     const id = this.editingId();
-    if (id !== null && !this.hasRoleChanges()) return;
     const name = id !== null ? this.selectedRole()?.name : (this.roleForm.value.roleName as string);
     if (!name) {
       this.actionError.set('Role name is missing. Please start again.');
@@ -402,7 +384,6 @@ export class RoleManagement implements OnInit {
  
     this.submitting.set(true);
     this.actionError.set(null);
-    this.success.set(null);
  
     const save$ = id !== null ? this.roleService.update(id, request) : this.roleService.create(request);
  
@@ -420,53 +401,12 @@ export class RoleManagement implements OnInit {
       },
       error: (err) => {
         this.submitting.set(false);
-        // A network error cannot tell us whether the server committed; only retry after user action.
-        this.actionError.set(this.getRoleSaveErrorMessage(err, id !== null));
-        if (id === null && err instanceof HttpErrorResponse && err.status === 409) {
-          this.dialog.set('role');
-        }
+        const fieldErrors = getApiFieldErrors(err);
+        this.actionError.set(
+          fieldErrors?.['name'] ?? getApiErrorMessage(err, 'Unable to save this role. Please try again.'),
+        );
       },
     });
-  }
-
-  private getRoleSaveErrorMessage(err: unknown, isUpdate: boolean): string {
-    if (err instanceof HttpErrorResponse) {
-      if (err.status === 0) {
-        return 'Network connection lost. Please check your internet connection and try again.';
-      }
-      if (err.status === 409) {
-        return 'Role already exists.';
-      }
-      if (err.status >= 500 && err.status < 600) {
-        return isUpdate
-          ? 'Unable to update the role. Please try again later.'
-          : 'Unable to save the role. Please try again later.';
-      }
-    }
-
-    const fieldErrors = getApiFieldErrors(err);
-    return fieldErrors?.['name'] ?? getApiErrorMessage(err, 'Unable to save this role. Please try again.');
-  }
-
-  private createRoleSnapshot(role: Role, rows: PermissionRow[]): string {
-    const { permissions: _rolePermissions, ...roleFields } = role;
-    const permissionState = rows
-      .map((row) => ({
-        categoryId: row.categoryId,
-        categoryName: row.categoryName,
-        featureId: row.featureId,
-        values: {
-          create: row.values.create,
-          read: row.values.read,
-          update: row.values.update,
-          delete: row.values.delete,
-        },
-      }))
-      .sort((left, right) =>
-        `${left.categoryId}:${left.featureId}`.localeCompare(`${right.categoryId}:${right.featureId}`),
-      );
-
-    return JSON.stringify({ roleFields, permissions: permissionState });
   }
  
   private upsert(list: Role[], saved: Role): Role[] {

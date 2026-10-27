@@ -35,11 +35,17 @@ export class PackagePermissionStep implements OnInit {
   protected readonly submitting = signal(false);
   protected readonly formError = signal('');
 
+  /** True when this step was reached from "Edit package" (draft carries an existing package id). */
+  protected readonly isEditing = computed(() => this.draft.editingPackageId() !== null);
+
   protected readonly permissionFeatures = computed(() =>
     this.draft.categories().flatMap((category) =>
       category.features.map((feature) => ({ categoryId: category.id, feature }))));
 
-  /** Live count so it's obvious in the UI whether a toggle click actually registered. */
+  /** Categories (with at least one feature) in backend order, for the grouped layout. */
+  protected readonly permissionGroups = computed(() =>
+    this.draft.categories().filter((category) => category.features.length > 0));
+
   protected readonly selectedCount = computed(() =>
     this.draft.categories().reduce(
       (total, category) =>
@@ -52,9 +58,7 @@ export class PackagePermissionStep implements OnInit {
     ));
 
   ngOnInit(): void {
-    // Draft lives in memory only, so a hard refresh drops it — send the user
-    // back to the package list (NOT '/package', which doesn't exist at root
-    // and would fall through to the '**' wildcard → login page).
+    // Draft lives in memory only, so a hard refresh drops it.
     if (!this.draft.hasDraft()) {
       this.router.navigate([PACKAGE_LIST_PATH]);
       return;
@@ -81,7 +85,8 @@ export class PackagePermissionStep implements OnInit {
               permissions: { create: false, read: false, update: false, delete: false },
             })),
           }));
-          this.draft.setSeedCategories(categories, this.draft.editingPackageId() !== null);
+          // In edit mode the draft service keeps the package's saved permissions (see setSeedCategories).
+          this.draft.setSeedCategories(categories);
           this.featuresLoaded.set(true);
         },
         error: (error) =>
@@ -98,42 +103,60 @@ export class PackagePermissionStep implements OnInit {
     this.draft.toggle(categoryId, featureId, action);
   }
 
+  /** True when every permission of every feature in the category is on. */
+  protected isCategoryOn(category: PackagePermissionCategory): boolean {
+    return category.features.every((f) => Object.values(f.permissions).every(Boolean));
+  }
+
+  protected toggleCategory(categoryId: string): void {
+    if (!this.featuresLoaded()) return;
+    this.draft.toggleCategory(categoryId);
+  }
+
   protected cancelPermissionStep(): void {
     this.draft.clearDraft();
     this.router.navigate([PACKAGE_LIST_PATH]);
   }
 
+  /** Create a new package, or update the existing one when editing. */
   protected savePackageWithPermissions(): void {
     const payload = this.draft.pendingPayload();
     if (!payload || this.submitting() || !this.featuresLoaded()) return;
 
+    const editingId = this.draft.editingPackageId();
+    const body = { ...payload, permissions: this.draft.asPayloadPermissions() };
+
     this.submitting.set(true);
     this.formError.set('');
-    const request = { ...payload, permissions: this.draft.asPayloadPermissions() };
-    const editingPackageId = this.draft.editingPackageId();
-    const saveRequest = editingPackageId !== null
-      ? this.packagesApi.update(editingPackageId, request)
-      : this.packagesApi.create(request, crypto.randomUUID());
 
-    saveRequest
+    const request$ = editingId !== null
+      ? this.packagesApi.update(editingId, body)
+      : this.packagesApi.create(body, crypto.randomUUID());
+
+    request$
       .pipe(finalize(() => this.submitting.set(false)))
       .subscribe({
         next: () => {
           this.draft.clearDraft();
           this.router.navigate([PACKAGE_LIST_PATH], {
-            state: editingPackageId !== null ? { packageUpdated: true } : { packageCreated: true },
+            state: editingId !== null ? { packageUpdated: true } : { packageCreated: true },
           });
         },
         error: (error) => {
-          console.error(editingPackageId !== null ? 'Package update failed:' : 'Package creation failed:', error);
+          console.error(editingId !== null ? 'Package update failed:' : 'Package creation failed:', error);
           const backendMessage =
             typeof error?.error === 'string' ? error.error : error?.error?.detail ?? error?.error?.message ?? '';
           if (error?.status === 0 || error?.status >= 500) {
             this.formError.set(serverActionErrorMessage);
-          } else if (error?.status === 409 || /duplicate|exists/i.test(backendMessage)) {
+          } else if (/same name/i.test(backendMessage)) {
             this.formError.set('A package with the same name already exists');
           } else {
-            this.formError.set(backendMessage || 'Package could not be saved. Please check the details and try again.');
+            this.formError.set(
+              backendMessage ||
+                (editingId !== null
+                  ? 'Package update failed. Please check the details and try again.'
+                  : 'Package creation failed. Please check the details and try again.'),
+            );
           }
         },
       });
