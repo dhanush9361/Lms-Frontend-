@@ -12,14 +12,16 @@ import { Router } from '@angular/router';
 import { EMPTY, catchError, expand, finalize, forkJoin, of, reduce } from 'rxjs';
 
 import { AdminPage, AdminSummary, AuthService } from '../../services/auth';
-import { PackageRecord, PackageService } from '../../services/package.service';
+import {
+  AVAILABLE_PACKAGE_OPTIONS,
+  PackagePage,
+  PackageRecord,
+  PackageService,
+} from '../../services/package.service';
 
 type BillingCycle = 'Monthly' | 'Yearly';
 type CurrencyCode = 'USD' | 'EUR' | 'INR';
 type DetailsTab = 'subscription' | 'billing';
-type PlanType = PackageRecord['availablePackage'];
-
-const planOrder: PlanType[] = ['Basic', 'Standard', 'Premium', 'Existing'];
 
 @Component({
   selector: 'app-settings',
@@ -46,28 +48,38 @@ export class Settings implements OnInit {
   protected readonly detailsTab = signal<DetailsTab>('subscription');
   protected readonly selectedPackage = signal<PackageRecord | null>(null);
   protected readonly visiblePackages = computed(() => {
-    const packages = this.packages().filter((item) => item.billingCycle === this.billingCycle());
-
-    return planOrder.flatMap((type) =>
-      packages
-        .filter((item) => item.availablePackage === type)
-        .sort((first, second) => this.packageAssignmentCount(second) - this.packageAssignmentCount(first)),
-    );
+    return this.packages()
+      .filter((item) => item.billingCycle === this.billingCycle())
+      .sort((first, second) => {
+        const categoryOrder =
+          AVAILABLE_PACKAGE_OPTIONS.indexOf(first.availablePackage) -
+          AVAILABLE_PACKAGE_OPTIONS.indexOf(second.availablePackage);
+        return categoryOrder || this.packageAssignmentCount(second) - this.packageAssignmentCount(first);
+      });
   });
 
-  protected readonly popularPackageId = computed<number | null>(() => {
-    if (!this.assignmentCountsAvailable()) return null;
-    let popularPackageId: number | null = null;
-    let highestCount = 0;
-    for (const item of this.packages()) {
-      const count = this.packageAssignmentCount(item);
-      if (count > highestCount) {
-        highestCount = count;
-        popularPackageId = item.id;
-      }
+  protected readonly popularPackageIds = computed<ReadonlySet<number>>(() => {
+    if (!this.assignmentCountsAvailable()) return new Set<number>();
+    const packagesByPrice = new Map<number, PackageRecord[]>();
+    for (const item of this.visiblePackages()) {
+      const samePricePackages = packagesByPrice.get(item.price) ?? [];
+      samePricePackages.push(item);
+      packagesByPrice.set(item.price, samePricePackages);
     }
 
-    return popularPackageId;
+    const popularIds = new Set<number>();
+    for (const samePricePackages of packagesByPrice.values()) {
+      if (samePricePackages.length < 2) continue;
+
+      const counts = samePricePackages.map((item) => this.packageAssignmentCount(item));
+      const highestCount = Math.max(...counts);
+      if (highestCount === 0 || counts.filter((count) => count === highestCount).length !== 1) continue;
+
+      const popularPackage = samePricePackages[counts.indexOf(highestCount)];
+      popularIds.add(popularPackage.id);
+    }
+
+    return popularIds;
   });
 
   ngOnInit(): void {
@@ -82,7 +94,7 @@ export class Settings implements OnInit {
     this.packageAssignmentCounts.set(new Map());
 
     forkJoin({
-      packages: this.packagesApi.list({ status: 'Active', page: 0, size: 100 }),
+      packages: this.loadAllPackages(),
       admins: this.loadAllAdmins().pipe(
         catchError((error: unknown) => {
           console.error('Failed to load package assignments:', error);
@@ -98,7 +110,7 @@ export class Settings implements OnInit {
       .pipe(finalize(() => this.loading.set(false)))
       .subscribe({
         next: ({ packages, admins }) => {
-          this.packages.set(packages.content);
+          this.packages.set(packages);
           if (admins) {
             this.packageAssignmentCounts.set(this.countAssignments(admins));
             this.assignmentCountsAvailable.set(true);
@@ -197,7 +209,7 @@ export class Settings implements OnInit {
   }
 
   protected isPopular(item: PackageRecord): boolean {
-    return item.id === this.popularPackageId();
+    return this.popularPackageIds().has(item.id);
   }
 
   protected packageStorageLimit(item: PackageRecord): string {
@@ -213,6 +225,18 @@ export class Settings implements OnInit {
           : EMPTY,
       ),
       reduce((admins: AdminSummary[], page: AdminPage) => admins.concat(page.content), []),
+    );
+  }
+
+  private loadAllPackages() {
+    const pageSize = 100;
+    return this.packagesApi.list({ page: 0, size: pageSize }).pipe(
+      expand((page) =>
+        page.number + 1 < page.totalPages
+          ? this.packagesApi.list({ page: page.number + 1, size: pageSize })
+          : EMPTY,
+      ),
+      reduce((packages: PackageRecord[], page: PackagePage) => packages.concat(page.content), []),
     );
   }
 

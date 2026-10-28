@@ -95,17 +95,50 @@ export interface UserPackageAssignment {
   packageId: number;
 }
 
+const CREATED_PACKAGE_IDS_KEY = 'vativa_created_package_ids';
+
+function readCreatedPackageIds(): ReadonlySet<number> {
+  if (typeof sessionStorage === 'undefined') return new Set();
+  const storedIds = sessionStorage.getItem(CREATED_PACKAGE_IDS_KEY);
+  if (!storedIds) return new Set();
+
+  try {
+    const parsed: unknown = JSON.parse(storedIds);
+    if (Array.isArray(parsed) && parsed.every((id) => Number.isSafeInteger(id) && id > 0)) {
+      return new Set(parsed);
+    }
+    throw new TypeError('Stored package IDs are invalid.');
+  } catch (error) {
+    console.error('Could not read created package IDs:', error);
+    sessionStorage.removeItem(CREATED_PACKAGE_IDS_KEY);
+    return new Set();
+  }
+}
+
 // ---------------------------------------------------------------------
 // PackageService — all HTTP communication with /api/packages/**.
-// Stateless: every method is a request/response, nothing is cached or
-// held in memory here. Used by the package list, create modal, update
-// modal, and the permission step.
+// Created-package IDs are UI metadata used to distinguish newly created Monthly plans.
 // ---------------------------------------------------------------------
 @Injectable({ providedIn: 'root' })
 export class PackageService {
   private readonly baseUrl = `${environment.apiBaseUrl}/api/packages`;
+  private readonly _createdPackageIds = signal<ReadonlySet<number>>(readCreatedPackageIds());
+  readonly createdPackageIds = this._createdPackageIds.asReadonly();
 
   constructor(private readonly http: HttpClient) {}
+
+  markPackageCreated(id: number): void {
+    const ids = new Set(this._createdPackageIds());
+    ids.add(id);
+    this._createdPackageIds.set(ids);
+    if (typeof sessionStorage === 'undefined') return;
+
+    try {
+      sessionStorage.setItem(CREATED_PACKAGE_IDS_KEY, JSON.stringify([...ids]));
+    } catch (error) {
+      console.error('Could not save created package IDs:', error);
+    }
+  }
 
   list(query: PackageQuery = {}): Observable<PackagePage> {
     let params = new HttpParams();

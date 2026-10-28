@@ -132,8 +132,9 @@
             >
               <span class="inline-block">{{ plan.price | currency:currency():'symbol':'1.0-2' }}</span>
             </p>
+            <p class="mt-1 min-h-3 text-[9px] leading-3">{{ plan.billingCycle }}</p>
             <p class="mt-2 min-h-7 line-clamp-2 text-[clamp(8px,0.9vw,11px)] leading-3">
-              {{ plan.description || (plan.availablePackage + ' plan') }}
+              {{ plan.description }}
             </p>
 
             <ul class="mt-4 min-h-0 flex-1 space-y-2.5 overflow-y-auto">

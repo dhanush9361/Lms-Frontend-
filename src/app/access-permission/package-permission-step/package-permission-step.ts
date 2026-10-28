@@ -136,7 +136,8 @@ export class PackagePermissionStep implements OnInit {
     request$
       .pipe(finalize(() => this.submitting.set(false)))
       .subscribe({
-        next: () => {
+        next: (savedPackage) => {
+          this.packagesApi.markPackageCreated(savedPackage.id);
           this.draft.clearDraft();
           this.router.navigate([PACKAGE_LIST_PATH], {
             state: editingId !== null ? { packageUpdated: true } : { packageCreated: true },
