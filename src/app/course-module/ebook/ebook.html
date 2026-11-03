@@ -1,0 +1,1244 @@
+<style>
+.ebook-page {
+  position: fixed;
+  z-index: 80;
+  inset: 0;
+  overflow: auto;
+  display: block;
+  min-height: 100dvh;
+  color: #505050;
+  font-family: 'DM Sans', 'Arial', sans-serif;
+  padding: 1.3rem clamp(1rem, 4.5vw, 3.5rem) 2rem;
+  background: #1f1f1f;
+}
+.ebook-page .page-caption {
+  width: min(100%, 75rem);
+  margin: 0 auto 0.45rem;
+  color: #9ba2a5;
+  font-size: 0.75rem;
+  letter-spacing: 0.015em;
+}
+.ebook-page .editor-shell {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  width: min(100%, 75rem);
+  min-height: min(59rem, calc(100dvh - 3rem));
+  flex-direction: column;
+  margin-inline: auto;
+  overflow: hidden;
+  border: 2px solid #348ce1;
+  border-radius: 0.12rem;
+  background: #fff;
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 12%);
+}
+.ebook-page.picker-overlay-mode {
+  min-height: 0;
+  padding: 0;
+  overflow: visible;
+  background: transparent;
+  pointer-events: none;
+}
+.ebook-page.picker-overlay-mode .page-caption,
+.ebook-page.picker-overlay-mode .editor-shell {
+  display: none;
+}
+.ebook-page.picker-overlay-mode .modal-layer {
+  pointer-events: auto;
+}
+.ebook-page .editor-shell::before {
+  position: absolute;
+  z-index: -1;
+  top: 25%;
+  bottom: 25%;
+  left: -2px;
+  width: 3rem;
+  border-radius: 0 2.4rem 2.4rem 0;
+  background: #63bac6;
+  content: '';
+}
+.ebook-page .topbar {
+  display: flex;
+  min-height: 4.1rem;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.55rem 1.4rem;
+  background: #fff;
+}
+.ebook-page .brand {
+  display: flex;
+  width: 4.2rem;
+  flex: 0 0 4.2rem;
+  flex-direction: column;
+  align-items: center;
+  color: #b79a58;
+  text-align: center;
+  text-decoration: none;
+}
+.ebook-page .brand-mark {
+  display: block;
+  width: 1.7rem;
+  height: 1.7rem;
+}
+.ebook-page .brand-mark svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.ebook-page .brand-name {
+  font-size: 0.34rem;
+  font-weight: 800;
+  line-height: 1.05;
+}
+.ebook-page .brand-name small {
+  display: block;
+  margin-top: 0.1rem;
+  font-size: 0.22rem;
+  font-weight: 500;
+}
+.ebook-page .breadcrumbs {
+  display: flex;
+  min-width: 14rem;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 0.38rem;
+  overflow: hidden;
+  color: #666;
+  font-size: 0.62rem;
+  white-space: nowrap;
+}
+.ebook-page .breadcrumbs strong {
+  font-weight: 500;
+}
+.ebook-page .topbar-actions {
+  display: flex;
+  flex: 0 1 auto;
+  align-items: center;
+  gap: 0.55rem;
+  color: #555;
+  font-size: 0.65rem;
+}
+.ebook-page .search-box,
+.ebook-page .topbar-icon {
+  height: 1.75rem;
+  border-radius: 0.38rem;
+  background: #f6f6f6;
+}
+.ebook-page .search-box {
+  display: flex;
+  width: clamp(5rem, 14vw, 8.8rem);
+  align-items: center;
+  padding-inline: 1.2rem;
+  color: #929292;
+}
+.ebook-page .topbar-icon {
+  width: 1.45rem;
+  flex: 0 0 1.45rem;
+}
+.ebook-page .profile-name {
+  margin-left: 0.1rem;
+  white-space: nowrap;
+}
+.ebook-page .back-link {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  align-self: flex-start;
+  margin: 0 0 0.8rem 1.4rem;
+  color: #565656;
+  font-size: 0.68rem;
+  cursor: pointer;
+}
+.ebook-page .work-area {
+  display: grid;
+  width: calc(100% - 4rem);
+  min-height: 0;
+  flex: 1 1 auto;
+  grid-template-columns: minmax(10rem, 17.5rem) minmax(0, 1fr);
+  gap: 0.8rem;
+  margin: 0 auto 1rem;
+  padding: 0.9rem;
+  border-radius: 0.9rem;
+  background: #fff;
+}
+.ebook-page .element-sidebar {
+  min-width: 0;
+  align-self: start;
+  padding: 0.6rem;
+  border-radius: 0.9rem;
+  background: #f5f5f5;
+}
+.ebook-page .element-list {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.55rem;
+  border-radius: 0.65rem;
+  background: #fff;
+}
+.ebook-page .element-pill {
+  display: flex;
+  min-height: 1.8rem;
+  align-items: center;
+  padding: 0.4rem 1.15rem;
+  border-radius: 999px;
+  background: #f5f5f5;
+  color: #555;
+  font-size: 0.62rem;
+  line-height: 1.2;
+}
+.ebook-page .element-pill-active {
+  background: #f0f0f0;
+  color: #444;
+}
+.ebook-page .element-pill-muted {
+  color: #b8b8b8;
+}
+.ebook-page .editor-content {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  padding: 0.55rem 0 0.5rem;
+}
+.ebook-page .settings-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  gap: 0.55rem 0.75rem;
+}
+.ebook-page .settings-card {
+  min-width: 0;
+  border-radius: 0.8rem;
+  background: #f6f6f6;
+  padding: 0.8rem 1rem;
+}
+.ebook-page .settings-card h2 {
+  margin: 0 0 0.55rem;
+  color: #4d4d4d;
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+.ebook-page .type-card,
+.ebook-page .font-card {
+  min-height: 4.75rem;
+}
+.ebook-page .setting-row {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  color: #555;
+  font-size: 0.58rem;
+  line-height: 1.35;
+}
+.ebook-page .font-card .setting-row + .setting-row {
+  margin-top: 0.4rem;
+}
+.ebook-page .select-display {
+  display: flex;
+  width: 8.7rem;
+  max-width: 60%;
+  min-height: 1.15rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+  overflow: hidden;
+  padding: 0.15rem 0.42rem;
+  border-radius: 0.22rem;
+  background: #fff;
+  color: #737373;
+  font-size: 0.53rem;
+  white-space: nowrap;
+}
+.ebook-page .muted-display {
+  color: #b2b2b2;
+}
+.ebook-page .text-content-card {
+  min-height: 5.9rem;
+}
+.ebook-page .format-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.32rem;
+  color: #383838;
+  font-family: Arial, sans-serif;
+  font-size: 0.68rem;
+  line-height: 1;
+}
+.ebook-page .format-toolbar span {
+  display: inline-grid;
+  min-width: 0.65rem;
+  height: 0.9rem;
+  place-items: center;
+}
+.ebook-page .format-toolbar span:nth-child(3) {
+  font-weight: 700;
+  text-decoration: underline;
+}
+.ebook-page .text-entry-placeholder {
+  margin: 0.55rem 0 0;
+  color: #555;
+  font-size: 0.58rem;
+}
+.ebook-page .color-card {
+  min-height: 4.1rem;
+  align-self: start;
+}
+.ebook-page .color-value {
+  display: flex;
+  max-width: 70%;
+  align-items: center;
+  gap: 0.42rem;
+  padding: 0.25rem 0.45rem;
+  border-radius: 0.25rem;
+  background: #fff;
+  color: #747474;
+  font-size: 0.53rem;
+  white-space: nowrap;
+}
+.ebook-page .color-value i {
+  width: 0.6rem;
+  height: 0.6rem;
+  flex: 0 0 0.6rem;
+  border-radius: 0.18rem;
+  background: #7265c6;
+}
+.ebook-page .page-controls {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.65rem;
+  margin: 0.5rem 0 0.75rem;
+}
+.ebook-page .page-controls span {
+  display: grid;
+  width: 1.55rem;
+  height: 1.55rem;
+  place-items: center;
+  border-radius: 50%;
+  background: #f3f7f7;
+  color: #62b5c2;
+  font-size: 1.15rem;
+  line-height: 1;
+}
+.ebook-page .ebook-preview {
+  flex: 1 1 auto;
+  padding: 0.5rem 1rem 1rem;
+  overflow: hidden;
+  background: #fff;
+}
+.ebook-page .ebook-preview h1 {
+  margin: 0 0 0.25rem;
+  color: #5a5a5a;
+  font-size: clamp(1.45rem, 2vw, 1.95rem);
+  font-weight: 600;
+  letter-spacing: 0.005em;
+  line-height: 1.15;
+}
+.ebook-page .ebook-preview h2 {
+  margin: 1rem 0 0.2rem;
+  color: #555;
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+.ebook-page .ebook-preview p {
+  margin: 0.55rem 0 0;
+  color: #686868;
+  font-size: 0.57rem;
+  line-height: 1.45;
+}
+.ebook-page .ebook-preview .preview-intro {
+  max-width: 58rem;
+  margin-top: 0.45rem;
+}
+.ebook-page .visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  clip-path: inset(50%);
+}
+@media (min-width: 1000px) and (min-height: 700px) {
+  .ebook-page .work-area {
+    min-height: 0;
+  }
+.ebook-page .ebook-preview p {
+    font-size: 0.58rem;
+  }
+
+}
+@media (max-width: 800px) {
+  .ebook-page {
+    padding: 1rem 0.75rem;
+  }
+.ebook-page .editor-shell {
+    min-height: calc(100dvh - 3.5rem);
+  }
+.ebook-page .topbar {
+    flex-wrap: wrap;
+    gap: 0.55rem;
+    padding-inline: 0.8rem;
+  }
+.ebook-page .breadcrumbs {
+    order: 3;
+    width: 100%;
+    flex-basis: 100%;
+  }
+.ebook-page .topbar-actions {
+    margin-left: auto;
+  }
+.ebook-page .back-link {
+    margin-left: 0.9rem;
+  }
+.ebook-page .work-area {
+    width: calc(100% - 1.2rem);
+    grid-template-columns: 1fr;
+    padding: 0.65rem;
+  }
+.ebook-page .element-sidebar {
+    padding: 0.45rem;
+  }
+.ebook-page .element-list {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.35rem;
+    padding: 0.35rem;
+  }
+.ebook-page .element-pill {
+    justify-content: center;
+    min-height: 2rem;
+    padding: 0.35rem;
+    text-align: center;
+  }
+.ebook-page .editor-content {
+    padding-top: 0;
+  }
+.ebook-page .ebook-preview {
+    min-height: 19rem;
+  }
+
+}
+@media (max-width: 520px) {
+  .ebook-page .topbar-actions {
+    gap: 0.35rem;
+  }
+.ebook-page .search-box {
+    width: 4.5rem;
+    padding-inline: 0.6rem;
+  }
+.ebook-page .topbar-icon {
+    width: 1.15rem;
+    flex-basis: 1.15rem;
+  }
+.ebook-page .settings-grid {
+    grid-template-columns: 1fr;
+  }
+.ebook-page .settings-card {
+    padding: 0.75rem;
+  }
+.ebook-page .color-card {
+    min-height: auto;
+  }
+.ebook-page .ebook-preview {
+    padding-inline: 0.5rem;
+  }
+
+}
+
+.ebook-page .editor-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.4rem;
+  margin-bottom: 0.6rem;
+}
+.ebook-page .activity-name-field {
+  min-width: 8rem;
+  flex: 1 1 12rem;
+  height: 2rem;
+  border: 1px solid #e5e5e5;
+  border-radius: 0.45rem;
+  padding: 0 0.65rem;
+  color: #4f4f4f;
+  font-size: 0.68rem;
+}
+.ebook-page .action-button,
+.ebook-page .quiet-button {
+  min-height: 2rem;
+  border: 0;
+  border-radius: 999px;
+  padding: 0.4rem 0.85rem;
+  background: #63bac6;
+  color: #fff;
+  font-size: 0.62rem;
+  cursor: pointer;
+}
+.ebook-page .quiet-button {
+  background: #f4f4f4;
+  color: #555;
+}
+.ebook-page button:focus-visible,
+.ebook-page input:focus-visible,
+.ebook-page select:focus-visible,
+.ebook-page textarea:focus-visible {
+  outline: 2px solid #28636e;
+  outline-offset: 2px;
+}
+.ebook-page button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.ebook-page .modal-layer {
+  position: fixed;
+  z-index: 100;
+  inset: 0;
+  display: grid;
+  width: auto;
+  height: auto;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  border: 0;
+  place-items: center;
+  padding: 1rem;
+  overflow: auto;
+  background: transparent;
+  color: #505050;
+}
+.ebook-page .modal-layer::backdrop {
+  background: rgb(0 0 0 / 32%);
+  backdrop-filter: blur(3px);
+}
+.ebook-page .dialog-card {
+  position: relative;
+  width: min(32rem, 100%);
+  max-height: min(90dvh, 54rem);
+  overflow: auto;
+  border-radius: 0.75rem;
+  background: #fff;
+  padding: 1.2rem;
+  box-shadow: 0 1rem 3rem rgb(0 0 0 / 20%);
+}
+.ebook-page .template-picker-card {
+  width: min(28rem, 100%);
+  padding: 1.1rem;
+}
+.ebook-page .dialog-wide {
+  width: min(70rem, 100%);
+  padding: 1.35rem;
+}
+.ebook-page .dialog-title {
+  margin: 0 2.8rem 1rem 0;
+  color: #454545;
+  font-size: 1rem;
+  font-weight: 500;
+}
+.ebook-page .dialog-close {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: grid;
+  width: 2.15rem;
+  height: 2.15rem;
+  place-items: center;
+  border: 0;
+  border-radius: 0 0.75rem 0 0.35rem;
+  background: #f3565a;
+  color: white;
+  font-size: 1.25rem;
+  cursor: pointer;
+}
+.ebook-page .template-options {
+  display: grid;
+  gap: 0.7rem;
+}
+.ebook-page .template-option {
+  min-height: 3.5rem;
+  border: 1px solid transparent;
+  border-radius: 0.6rem;
+  background: #f4f4f4;
+  padding: 0.7rem 0.9rem;
+  color: #494949;
+  text-align: left;
+  font-size: 0.67rem;
+  cursor: pointer;
+}
+.ebook-page .template-option:hover,
+.ebook-page .template-option.is-selected {
+  border-color: #63bac6;
+  background: #eef9fa;
+}
+.ebook-page .field-label {
+  display: block;
+  margin: 0.9rem 0 0.3rem;
+  color: #505050;
+  font-size: 0.66rem;
+  font-weight: 500;
+}
+.ebook-page .form-field {
+  width: 100%;
+  min-height: 2.25rem;
+  border: 1px solid #e2e2e2;
+  border-radius: 0.45rem;
+  background: #fff;
+  padding: 0.45rem 0.6rem;
+  color: #505050;
+  font: inherit;
+  font-size: 0.65rem;
+}
+.ebook-page textarea.form-field {
+  min-height: 5rem;
+  resize: vertical;
+}
+.ebook-page .dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.45rem;
+  margin-top: 1rem;
+}
+.ebook-page .form-error {
+  margin: 0.65rem 0 0;
+  color: #b42318;
+  font-size: 0.65rem;
+}
+.ebook-page .message-success {
+  margin: 0.35rem 0 0.7rem;
+  color: #176b3a;
+  font-size: 0.65rem;
+}
+.ebook-page .element-row {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.ebook-page .element-select {
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+.ebook-page .element-tools {
+  display: flex;
+  gap: 0.1rem;
+}
+.ebook-page .tiny-button {
+  display: grid;
+  width: 1.45rem;
+  height: 1.45rem;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: #eef8fa;
+  color: #3e8d99;
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+.ebook-page .empty-preview {
+  display: grid;
+  min-height: 13rem;
+  place-content: center;
+  border: 1px dashed #a8d8df;
+  border-radius: 0.7rem;
+  color: #777;
+  text-align: center;
+  font-size: 0.72rem;
+}
+.ebook-page .preview-block {
+  position: relative;
+  min-height: 4rem;
+  margin-bottom: 0.7rem;
+  padding: 1rem;
+  border: 1px solid #f1f1f1;
+  border-radius: 0.5rem;
+  cursor: pointer;
+}
+.ebook-page .preview-block.is-selected {
+  outline: 1px dashed #63bac6;
+  outline-offset: 2px;
+}
+.ebook-page .preview-block h2,
+.ebook-page .preview-block p {
+  margin: 0.2rem 0;
+}
+.ebook-page .settings-group {
+  margin-top: 0.65rem;
+  border-top: 1px solid #ededed;
+  padding-top: 0.65rem;
+}
+.ebook-page .settings-group h3 {
+  margin: 0 0 0.5rem;
+  color: #555;
+  font-size: 0.64rem;
+  font-weight: 600;
+}
+.ebook-page .settings-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.45rem 0.65rem;
+}
+.ebook-page .setting-field {
+  display: grid;
+  min-width: 0;
+  gap: 0.2rem;
+  color: #666;
+  font-size: 0.56rem;
+}
+.ebook-page .setting-field input,
+.ebook-page .setting-field select,
+.ebook-page .setting-field textarea {
+  width: 100%;
+  min-width: 0;
+  min-height: 1.55rem;
+  border: 1px solid #e8e8e8;
+  border-radius: 0.3rem;
+  background: #fff;
+  padding: 0.2rem 0.35rem;
+  color: #666;
+  font: inherit;
+  font-size: 0.56rem;
+}
+.ebook-page .setting-field textarea {
+  min-height: 4rem;
+  resize: vertical;
+}
+.ebook-page .setting-field input[type='color'] {
+  height: 1.65rem;
+  padding: 0.1rem;
+}
+.ebook-page .setting-field input[type='checkbox'] {
+  width: 1rem;
+  min-height: 1rem;
+  accent-color: #4694a4;
+}
+.ebook-page .category-layout {
+  display: grid;
+  min-height: 30rem;
+  grid-template-columns: minmax(12rem, 15.5rem) minmax(0, 1fr);
+  gap: 1rem;
+}
+.ebook-page .category-list {
+  display: grid;
+  align-content: start;
+  gap: 0.65rem;
+  padding: 0.75rem;
+  border-radius: 1rem;
+  background: #f5f5f5;
+}
+.ebook-page .design-gallery-frame {
+  min-width: 0;
+  padding: 0.85rem;
+  border-radius: 1rem;
+  background: #f5f5f5;
+}
+.ebook-page .category-button {
+  min-height: 2.8rem;
+  border: 0;
+  border-radius: 0.7rem;
+  background: #f3f3f3;
+  padding: 0.55rem 0.9rem;
+  color: #4c4c4c;
+  text-align: left;
+  font-size: 0.62rem;
+  cursor: pointer;
+}
+.ebook-page .category-button.is-selected {
+  background: #f0f0f0;
+  color: #4c4c4c;
+}
+.ebook-page .design-gallery {
+  display: grid;
+  min-height: 100%;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-content: start;
+  gap: 1rem;
+  padding: 1rem;
+  border-radius: 0.8rem;
+  background: #fff;
+}
+.ebook-page .design-card {
+  min-height: 5.2rem;
+  border: 0;
+  padding: 0.55rem;
+  color: #fff;
+  text-align: left;
+  font-size: 0.68rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.ebook-page .design-0,
+.ebook-page .design-1 { background: #292d31; }
+.ebook-page .design-2,
+.ebook-page .design-3 { background: #f8ad3d; }
+.ebook-page .design-4 { background: linear-gradient(135deg, #8da9d4, #ceb4d7); color: #333; }
+.ebook-page .design-4 { min-height: 9.5rem; padding: 1rem; }
+.ebook-page .design-4-label {
+  display: grid;
+  min-height: 7.5rem;
+  align-content: center;
+  justify-items: center;
+  background: rgb(255 255 255 / 55%);
+  color: #292d31;
+  text-align: center;
+}
+.ebook-page .design-4-label small {
+  font-size: 0.45rem;
+  font-weight: 500;
+}
+.ebook-page .design-4-label strong {
+  font-size: 0.75rem;
+}
+.ebook-page .import-list {
+  display: grid;
+  max-height: 50vh;
+  gap: 0.4rem;
+  overflow: auto;
+}
+.ebook-page .import-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+  border-radius: 0.45rem;
+  background: #f5f5f5;
+  padding: 0.65rem;
+  font-size: 0.64rem;
+}
+.ebook-page .attached-media {
+  display: block;
+  max-width: min(100%, 32rem);
+  max-height: 20rem;
+  margin-top: 0.75rem;
+  border-radius: 0.45rem;
+  object-fit: contain;
+}
+@media (max-width: 700px) {
+  .ebook-page .settings-grid,
+  .ebook-page .category-layout {
+    grid-template-columns: 1fr;
+  }
+  .ebook-page .category-layout {
+    min-height: 0;
+    max-height: 65vh;
+    overflow: auto;
+  }
+  .ebook-page .design-gallery {
+    min-height: 18rem;
+    grid-template-columns: 1fr;
+  }
+  .ebook-page .settings-fields {
+    grid-template-columns: 1fr 1fr;
+  }
+  .ebook-page .dialog-card {
+    padding: 1rem;
+  }
+}
+
+.ebook-page.embedded-editor {
+  position: absolute;
+  inset: 0;
+  z-index: auto;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  padding: 0;
+}
+.ebook-page.embedded-editor .page-caption {
+  display: none;
+}
+.ebook-page.embedded-editor .editor-shell {
+  width: 100%;
+  height: 100%;
+  min-height: 100%;
+  border: 0;
+  border-radius: 0;
+}
+
+</style>
+
+<main class="ebook-page" [class.picker-overlay-mode]="embedded() && showTemplateDialog()" [class.embedded-editor]="embedded() && !showTemplateDialog()" aria-label="Ebook editor">
+  <p class="page-caption">LMS - {{ activity().name || 'Blank Ebook' }}</p>
+
+  <section class="editor-shell" aria-label="Ebook editing workspace">
+    <header class="topbar">
+      <div class="brand" aria-label="Vativahub Learning Management">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 40 40" fill="none">
+            <path d="M8 8h24L20 31 8 8Z" stroke="currentColor" stroke-width="2" />
+            <path d="m13 13 7 13 7-13M4 34h32" stroke="currentColor" stroke-width="1.5" />
+            <circle cx="20" cy="6" r="2" fill="currentColor" />
+          </svg>
+        </span>
+        <span class="brand-name">VATIVAHUB<small>LEARNING MANAGEMENT</small></span>
+      </div>
+      <nav class="breadcrumbs" aria-label="Breadcrumb">
+        <span>Content Management</span><span aria-hidden="true">›</span>
+        <span>{{ courseName() }}</span><span aria-hidden="true">›</span>
+        <span>Organize Modules</span><span aria-hidden="true">›</span>
+        <span>E-Book</span><span aria-hidden="true">›</span>
+        <strong>{{ activity().name || 'Blank E-Book' }}</strong>
+      </nav>
+      <div class="topbar-actions" aria-label="Workspace tools">
+        <span class="search-box">Search</span>
+        <span class="topbar-icon" aria-hidden="true"></span>
+        <span class="topbar-icon" aria-hidden="true"></span>
+        <span class="topbar-icon" aria-hidden="true"></span>
+        <span class="profile-name">Maxx</span>
+      </div>
+    </header>
+
+    <button type="button" class="back-link" (click)="closeEditor()">‹ Back</button>
+
+    @if (successMessage()) {
+      <p class="message-success" role="status" aria-live="polite">{{ successMessage() }}</p>
+    }
+
+    @if (!showTemplateDialog()) {
+      <div class="work-area">
+        <aside class="element-sidebar" aria-label="Ebook content elements">
+          <div class="element-list">
+            <h2 class="visually-hidden">Ebook content elements</h2>
+            @for (element of activity().elements; track element.id; let index = $index) {
+              <div class="element-row element-pill" [class.element-pill-active]="selectedElementId() === element.id">
+                <button type="button" class="element-select" (click)="selectedElementId.set(element.id)" [attr.aria-pressed]="selectedElementId() === element.id">
+                  {{ element.title || element.kind }}
+                </button>
+                @if (!readonlyMode()) {
+                  <div class="element-tools">
+                    <button type="button" class="tiny-button" (click)="moveElement(element.id, -1)" [disabled]="index === 0" [attr.aria-label]="'Move ' + element.title + ' up'">↑</button>
+                    <button type="button" class="tiny-button" (click)="moveElement(element.id, 1)" [disabled]="index === activity().elements.length - 1" [attr.aria-label]="'Move ' + element.title + ' down'">↓</button>
+                    <button type="button" class="tiny-button" (click)="duplicateElement(element.id)" [attr.aria-label]="'Copy ' + element.title">⧉</button>
+                    <button type="button" class="tiny-button" (click)="removeElement(element.id)" [attr.aria-label]="'Delete ' + element.title">×</button>
+                  </div>
+                }
+              </div>
+            } @empty {
+              <span class="element-pill element-pill-active">Ebook Text</span>
+              <span class="element-pill">Layouts</span>
+              <span class="element-pill element-pill-muted">Sample</span>
+              <span class="element-pill element-pill-muted">Sample</span>
+              <span class="element-pill element-pill-muted">Sample</span>
+              <span class="element-pill element-pill-muted">Sample</span>
+            }
+          </div>
+        </aside>
+
+        <section class="editor-content" aria-label="Ebook design and preview">
+          @if (!readonlyMode()) {
+            <div class="editor-toolbar">
+              <label class="visually-hidden" for="ebook-activity-name">Activity Name</label>
+              <input id="ebook-activity-name" class="activity-name-field" [value]="activity().name" maxlength="100" (input)="setActivityName($event)" aria-label="Activity Name" />
+              <button type="button" class="quiet-button" (click)="togglePreview()">Preview</button>
+              <button type="button" class="quiet-button" (click)="openImport()">Import</button>
+              <button type="button" class="quiet-button" (click)="downloadEbook()">Download</button>
+              <button type="button" class="quiet-button" (click)="deleteEbook()" [disabled]="!activity().id">Delete</button>
+              <button type="button" class="action-button" (click)="openElementsDialog()">+ Add</button>
+              <button type="button" class="action-button" (click)="addTextElement()">+ Text</button>
+              <button type="button" class="action-button" (click)="saveEbook()" [disabled]="isSaving()">{{ isSaving() ? 'Saving…' : 'Save' }}</button>
+            </div>
+          } @else {
+            <div class="editor-toolbar">
+              @if (previewOnly()) {
+                <button type="button" class="quiet-button" (click)="closeEditor(true)">Close Preview</button>
+              } @else {
+                <button type="button" class="quiet-button" (click)="togglePreview()">Back to editing</button>
+              }
+            </div>
+          }
+
+          @if (formError()) {
+            <p class="form-error" role="alert">{{ formError() }}</p>
+          }
+
+          <div class="settings-grid">
+            @if (!readonlyMode() && selectedElement(); as element) {
+              @if (element.kind === 'Ebook Text' || element.kind === 'Media & Text') {
+                <section class="settings-card type-card" aria-labelledby="text-type-title">
+                  <h2 id="text-type-title">Ebook Text Type</h2>
+                  <label class="setting-row"><span>Type</span>
+                    <select class="select-display" [value]="element.settings.textType" (change)="updateSelect('textType', $event)">
+                      @for (type of textTypes; track type) { <option [value]="type">{{ type }}</option> }
+                    </select>
+                  </label>
+                </section>
+                <section class="settings-card font-card" aria-labelledby="font-properties-title">
+                  <h2 id="font-properties-title">Font Properties</h2>
+                  <label class="setting-row"><span>Font Family</span>
+                    <select class="select-display" [value]="element.settings.fontFamily" (change)="updateSelect('fontFamily', $event)">
+                      @for (font of fontFamilies; track font) { <option [value]="font">{{ font }}</option> }
+                    </select>
+                  </label>
+                  <label class="setting-row"><span>Opacity</span><input class="select-display" type="number" min="0" max="100" [value]="element.settings.opacity" (input)="updateSetting('opacity', $event)" /></label>
+                </section>
+                <section class="settings-card text-content-card" aria-labelledby="text-content-title">
+                  <h2 id="text-content-title">Text Content</h2>
+                  <div class="format-toolbar" aria-hidden="true"><span>≡</span><span>☷</span><span>A</span><span>▱</span><span>↗</span><span>Ω</span><span><strong>B</strong></span><span><s>S</s></span><span><u>U</u></span><span><i>I</i></span><span>×</span><span>☰</span></div>
+                  <label class="visually-hidden" for="ebook-element-title">Element heading</label>
+                  <input id="ebook-element-title" class="form-field" maxlength="100" [value]="element.title" (input)="updateElementTitle($event)" placeholder="Enter a heading" />
+                  <label class="visually-hidden" for="ebook-element-content">Text content (maximum 500 characters)</label>
+                  <textarea id="ebook-element-content" class="form-field" maxlength="500" [value]="element.content" (input)="updateElementText($event)" placeholder="Enter text (maximum 500 characters)"></textarea>
+                  <p class="text-entry-placeholder">{{ element.content.length }}/500 characters</p>
+                </section>
+                <section class="settings-card color-card" aria-labelledby="text-color-title">
+                  <h2 id="text-color-title">Text Color</h2>
+                  <label class="setting-row"><span>Color</span><input type="color" [value]="element.settings.textColor" (input)="updateColor('textColor', $event)" aria-label="Text color" /></label>
+                </section>
+                <section class="settings-card" aria-labelledby="text-shadow-title">
+                  <h2 id="text-shadow-title">Text Shadow</h2>
+                  <div class="settings-fields">
+                    <label class="setting-field">Shadow Position<select [value]="element.settings.textShadowPosition" (change)="updateSelect('textShadowPosition', $event)">@for (position of textShadowPositions; track position) { <option [value]="position">{{ position }}</option> }</select></label>
+                    <label class="setting-field">Horizontal Offset<input type="number" [value]="element.settings.shadowHorizontalOffset" (input)="updateSetting('shadowHorizontalOffset', $event)" /></label>
+                    <label class="setting-field">Vertical Offset<input type="number" [value]="element.settings.shadowVerticalOffset" (input)="updateSetting('shadowVerticalOffset', $event)" /></label>
+                    <label class="setting-field">Blur<input type="number" min="0" [value]="element.settings.shadowBlur" (input)="updateSetting('shadowBlur', $event)" /></label>
+                    <label class="setting-field">Shadow color<input type="color" [value]="element.settings.shadowColor" (input)="updateColor('shadowColor', $event)" /></label>
+                  </div>
+                </section>
+              }
+
+              @if (element.kind === 'Ebook Text') {
+                <section class="settings-card" aria-labelledby="text-box-layout-title">
+                  <h2 id="text-box-layout-title">Layout · Box Appearance</h2>
+                  <label class="setting-row"><span>Box color</span><input type="color" [value]="element.settings.boxColor" (input)="updateColor('boxColor', $event)" aria-label="Text box color" /></label>
+                  <div class="settings-group"><h3>Border</h3><div class="settings-fields">
+                    <label class="setting-field">Top<input type="number" min="0" [value]="element.settings.borderTop" (input)="updateSetting('borderTop', $event)" /></label>
+                    <label class="setting-field">Right<input type="number" min="0" [value]="element.settings.borderRight" (input)="updateSetting('borderRight', $event)" /></label>
+                    <label class="setting-field">Bottom<input type="number" min="0" [value]="element.settings.borderBottom" (input)="updateSetting('borderBottom', $event)" /></label>
+                    <label class="setting-field">Left<input type="number" min="0" [value]="element.settings.borderLeft" (input)="updateSetting('borderLeft', $event)" /></label>
+                    <label class="setting-field">Border Style<select [value]="element.settings.borderStyle" (change)="updateSelect('borderStyle', $event)">@for (item of borderStyles; track item) { <option [value]="item">{{ item }}</option> }</select></label>
+                    <label class="setting-field">Border Color<input type="color" [value]="element.settings.borderColor" (input)="updateColor('borderColor', $event)" /></label>
+                    <label class="setting-field">Border Radius<input type="number" min="0" [value]="element.settings.borderRadius" (input)="updateSetting('borderRadius', $event)" /></label>
+                  </div></div>
+                  <div class="settings-group"><h3>Padding &amp; Margin (px)</h3><div class="settings-fields">
+                    <label class="setting-field">Padding top<input type="number" min="0" [value]="element.settings.paddingTop" (input)="updateSetting('paddingTop', $event)" /></label>
+                    <label class="setting-field">Padding right<input type="number" min="0" [value]="element.settings.paddingRight" (input)="updateSetting('paddingRight', $event)" /></label>
+                    <label class="setting-field">Padding bottom<input type="number" min="0" [value]="element.settings.paddingBottom" (input)="updateSetting('paddingBottom', $event)" /></label>
+                    <label class="setting-field">Padding left<input type="number" min="0" [value]="element.settings.paddingLeft" (input)="updateSetting('paddingLeft', $event)" /></label>
+                    <label class="setting-field">Margin top<input type="number" [value]="element.settings.marginTop" (input)="updateSetting('marginTop', $event)" /></label>
+                    <label class="setting-field">Margin right<input type="number" [value]="element.settings.marginRight" (input)="updateSetting('marginRight', $event)" /></label>
+                    <label class="setting-field">Margin bottom<input type="number" [value]="element.settings.marginBottom" (input)="updateSetting('marginBottom', $event)" /></label>
+                    <label class="setting-field">Margin left<input type="number" [value]="element.settings.marginLeft" (input)="updateSetting('marginLeft', $event)" /></label>
+                  </div></div>
+                </section>
+              }
+
+              @if (element.kind !== 'Ebook Text') {
+                <section class="settings-card" aria-labelledby="element-content-heading">
+                  <h2 id="element-content-heading">{{ element.kind }} Content</h2>
+                  <label class="setting-field">Element heading<input maxlength="100" [value]="element.title" (input)="updateElementTitle($event)" /></label>
+                  <label class="setting-field">Content<textarea maxlength="500" [value]="element.content" (input)="updateElementText($event)"></textarea></label>
+                  @if (element.kind === 'Download File' || element.kind === 'Media & Text') {
+                    <label class="field-label">Attach a file<input type="file" (change)="onElementFileSelected($event)" /></label>
+                  }
+                </section>
+              }
+
+              @if (element.kind !== 'Ebook Text') {
+                <section class="settings-card" aria-labelledby="layout-title">
+                  <h2 id="layout-title">Layout</h2>
+                  <div class="settings-fields">
+                    <label class="setting-field">Alignment<select [value]="element.settings.alignment" (change)="updateSelect('alignment', $event)">@for (item of alignments; track item) { <option [value]="item">{{ item }}</option> }</select></label>
+                    <label class="setting-field">Height<select [value]="element.settings.height" (change)="updateSelect('height', $event)">@for (item of heights; track item) { <option [value]="item">{{ item }}</option> }</select></label>
+                    <label class="setting-field">Width<select [value]="element.settings.width" (change)="updateSelect('width', $event)">@for (item of widths; track item) { <option [value]="item">{{ item }}</option> }</select></label>
+                    <label class="setting-field">Box Appearance<input type="color" [value]="element.settings.boxColor" (input)="updateColor('boxColor', $event)" /></label>
+                  </div>
+                  <div class="settings-group"><h3>Border</h3><div class="settings-fields">
+                    <label class="setting-field">Top<input type="number" min="0" [value]="element.settings.borderTop" (input)="updateSetting('borderTop', $event)" /></label>
+                    <label class="setting-field">Right<input type="number" min="0" [value]="element.settings.borderRight" (input)="updateSetting('borderRight', $event)" /></label>
+                    <label class="setting-field">Bottom<input type="number" min="0" [value]="element.settings.borderBottom" (input)="updateSetting('borderBottom', $event)" /></label>
+                    <label class="setting-field">Left<input type="number" min="0" [value]="element.settings.borderLeft" (input)="updateSetting('borderLeft', $event)" /></label>
+                    <label class="setting-field">Border Style<select [value]="element.settings.borderStyle" (change)="updateSelect('borderStyle', $event)">@for (item of borderStyles; track item) { <option [value]="item">{{ item }}</option> }</select></label>
+                    <label class="setting-field">Border Color<input type="color" [value]="element.settings.borderColor" (input)="updateColor('borderColor', $event)" /></label>
+                    <label class="setting-field">Border Radius<input type="number" min="0" [value]="element.settings.borderRadius" (input)="updateSetting('borderRadius', $event)" /></label>
+                  </div></div>
+                  <div class="settings-group"><h3>Padding &amp; Margin (px)</h3><div class="settings-fields">
+                    <label class="setting-field">Padding top<input type="number" min="0" [value]="element.settings.paddingTop" (input)="updateSetting('paddingTop', $event)" /></label>
+                    <label class="setting-field">Padding right<input type="number" min="0" [value]="element.settings.paddingRight" (input)="updateSetting('paddingRight', $event)" /></label>
+                    <label class="setting-field">Padding bottom<input type="number" min="0" [value]="element.settings.paddingBottom" (input)="updateSetting('paddingBottom', $event)" /></label>
+                    <label class="setting-field">Padding left<input type="number" min="0" [value]="element.settings.paddingLeft" (input)="updateSetting('paddingLeft', $event)" /></label>
+                    <label class="setting-field">Margin top<input type="number" [value]="element.settings.marginTop" (input)="updateSetting('marginTop', $event)" /></label>
+                    <label class="setting-field">Margin right<input type="number" [value]="element.settings.marginRight" (input)="updateSetting('marginRight', $event)" /></label>
+                    <label class="setting-field">Margin bottom<input type="number" [value]="element.settings.marginBottom" (input)="updateSetting('marginBottom', $event)" /></label>
+                    <label class="setting-field">Margin left<input type="number" [value]="element.settings.marginLeft" (input)="updateSetting('marginLeft', $event)" /></label>
+                  </div></div>
+                </section>
+                <section class="settings-card" aria-labelledby="section-design-title">
+                  <h2 id="section-design-title">Section Design</h2>
+                  <div class="settings-fields">
+                    <label class="setting-field">Columns<select [value]="element.settings.columns" (change)="updateSelect('columns', $event)"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option></select></label>
+                    <label class="setting-field">Background<select [value]="element.settings.backgroundType" (change)="updateSelect('backgroundType', $event)">@for (item of backgroundTypes; track item) { <option [value]="item">{{ item }}</option> }</select></label>
+                    @if (element.settings.backgroundType === 'Color') { <label class="setting-field">Background color<input type="color" [value]="element.settings.backgroundColor" (input)="updateColor('backgroundColor', $event)" /></label> }
+                    @if (element.settings.backgroundType !== 'Color') { <label class="setting-field">{{ element.settings.backgroundType }} URL / value<input [value]="element.settings.backgroundUrl" (input)="updateBackgroundUrl($event)" /></label> }
+                    <label class="setting-field">Scroll Effect<select [value]="element.settings.scrollEffect" (change)="updateSelect('scrollEffect', $event)">@for (item of scrollEffects; track item) { <option [value]="item">{{ item }}</option> }</select></label>
+                    <label class="setting-field">Apply Overlay<input type="checkbox" [checked]="element.settings.overlayEnabled" (change)="updateToggle('overlayEnabled', $event)" /></label>
+                    @if (element.settings.overlayEnabled) {
+                      <label class="setting-field">Overlay color<input type="color" [value]="element.settings.overlayColor" (input)="updateColor('overlayColor', $event)" /></label>
+                      <label class="setting-field">Overlay opacity %<input type="number" min="0" max="100" [value]="element.settings.overlayOpacity" (input)="updateSetting('overlayOpacity', $event)" /></label>
+                    }
+                    <label class="setting-field">Top divider<input type="checkbox" [checked]="element.settings.topDivider" (change)="updateToggle('topDivider', $event)" /></label>
+                    <label class="setting-field">Bottom divider<input type="checkbox" [checked]="element.settings.bottomDivider" (change)="updateToggle('bottomDivider', $event)" /></label>
+                    @if (element.settings.topDivider || element.settings.bottomDivider) {
+                      <label class="setting-field">Divider fill<input type="color" [value]="element.settings.dividerFill" (input)="updateColor('dividerFill', $event)" /></label>
+                      <label class="setting-field">Divider width %<input type="number" min="0" max="400" [value]="element.settings.dividerWidth" (input)="updateSetting('dividerWidth', $event)" /></label>
+                      <label class="setting-field">Divider height px<input type="number" min="0" max="300" [value]="element.settings.dividerHeight" (input)="updateSetting('dividerHeight', $event)" /></label>
+                      <label class="setting-field">Stacking order<input type="checkbox" [checked]="element.settings.dividerStackingOrder" (change)="updateToggle('dividerStackingOrder', $event)" /></label>
+                      <label class="setting-field">Horizontal flip<input type="checkbox" [checked]="element.settings.dividerHorizontalFlip" (change)="updateToggle('dividerHorizontalFlip', $event)" /></label>
+                    }
+                  </div>
+                </section>
+              }
+            } @else if (!readonlyMode()) {
+              <section class="settings-card type-card"><h2>Ebook Text Type</h2><p class="text-entry-placeholder">Select an element to edit its properties.</p></section>
+            }
+          </div>
+
+          <div class="page-controls" aria-label="Ebook content controls"><span aria-hidden="true">‹</span><span aria-hidden="true">›</span></div>
+
+          <article class="ebook-preview" aria-label="Ebook page preview">
+            @if (activity().elements.length) {
+              @for (element of activity().elements; track element.id) {
+                <section class="preview-block"
+                  [class.is-selected]="selectedElementId() === element.id && !readonlyMode()"
+                  [class.preview-design-0]="element.design === 0"
+                  [class.preview-design-1]="element.design === 1"
+                  [class.preview-design-2]="element.design === 2"
+                  [class.preview-design-3]="element.design === 3"
+                  [class.preview-design-4]="element.design === 4"
+                  (click)="selectedElementId.set(element.id)"
+                  [style.background-color]="element.settings.backgroundType === 'Color' ? (element.kind === 'Ebook Text' ? element.settings.boxColor : element.settings.backgroundColor) : 'transparent'"
+                  [style.background-image]="element.settings.backgroundType === 'Image' && element.settings.backgroundUrl ? 'url(' + element.settings.backgroundUrl + ')' : (element.design === 2 ? 'linear-gradient(135deg, #8da9d4, #ceb4d7)' : 'none')"
+                  [style.background-size]="'cover'"
+                  [style.color]="element.settings.textColor"
+                  [style.font-family]="element.settings.fontFamily"
+                  [style.font-size]="textTypeSize(element)"
+                  [style.opacity]="element.settings.opacity / 100"
+                  [style.width]="elementWidth(element)"
+                  [style.min-height]="elementHeight(element)"
+                  [style.text-align]="element.settings.alignment.toLowerCase()"
+                  [style.border-top-width.px]="element.settings.borderTop"
+                  [style.border-right-width.px]="element.settings.borderRight"
+                  [style.border-bottom-width.px]="element.settings.borderBottom"
+                  [style.border-left-width.px]="element.settings.borderLeft"
+                  [style.border-style]="element.settings.borderStyle === 'No Border' ? 'none' : element.settings.borderStyle.toLowerCase()"
+                  [style.border-color]="element.settings.borderColor"
+                  [style.border-radius.px]="element.settings.borderRadius"
+                  [style.padding]="element.settings.paddingTop + 'px ' + element.settings.paddingRight + 'px ' + element.settings.paddingBottom + 'px ' + element.settings.paddingLeft + 'px'"
+                  [style.margin]="element.settings.marginTop + 'px ' + element.settings.marginRight + 'px ' + element.settings.marginBottom + 'px ' + element.settings.marginLeft + 'px'"
+                  [style.box-shadow]="overlayShadow(element)"
+                  [style.text-shadow]="textShadow(element)"
+                  [style.columns]="element.settings.columns">
+                  @if (element.settings.topDivider) {
+                    <div aria-hidden="true" [style.width.%]="element.settings.dividerWidth" [style.height.px]="element.settings.dividerHeight" [style.background-color]="element.settings.dividerFill" [style.transform]="element.settings.dividerHorizontalFlip ? 'scaleX(-1)' : 'none'" [style.position]="element.settings.dividerStackingOrder ? 'relative' : 'static'"></div>
+                  }
+                  <h2>{{ element.title }}</h2>
+                  <p>{{ element.content }}</p>
+                  @if (element.kind === 'External Content') {
+                    <a [href]="element.content" target="_blank" rel="noopener noreferrer">Open external content</a>
+                  }
+                  @if (element.kind === 'Media & Text' && (element.attachment || activity().uploadedFile) && (element.attachment || activity().uploadedFile)!.type.startsWith('image/')) {
+                    <img [src]="(element.attachment || activity().uploadedFile)!.dataUrl" [alt]="element.title" class="attached-media" />
+                  }
+                  @if (element.kind === 'Download File' && (element.attachment || activity().uploadedFile)) {
+                    <button type="button" class="quiet-button" (click)="downloadAttachment(element)">Download {{ (element.attachment || activity().uploadedFile)!.name }}</button>
+                  }
+                  @if (element.settings.bottomDivider) {
+                    <div aria-hidden="true" [style.width.%]="element.settings.dividerWidth" [style.height.px]="element.settings.dividerHeight" [style.background-color]="element.settings.dividerFill" [style.transform]="element.settings.dividerHorizontalFlip ? 'scaleX(-1)' : 'none'" [style.position]="element.settings.dividerStackingOrder ? 'relative' : 'static'"></div>
+                  }
+                </section>
+                @if (!readonlyMode()) {
+                  <button type="button" class="quiet-button" (click)="openElementsDialog()">+ Add Activity</button>
+                }
+              }
+            } @else {
+              <h1>Enter a heading</h1>
+              <p class="preview-intro">Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since 1966, when designers at Letraset and James Mosley, the librarian at St Bride Printing Library in London, took a 1914 Cicero translation and described it to make dummy text for Letraset's Body Type sheets.</p>
+              <h2>Paragraph</h2>
+              <p>Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since 1966, when designers at Letraset and James Mosley, the librarian at St Bride Printing Library in London, took a 1914 Cicero translation and scrambled it to make dummy text for Letraset's Body Type sheets. It has survived not only many decades, but also the leap into electronic typesetting, remaining essentially unchanged.</p>
+              <p>Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since 1966, when designers at Letraset and James Mosley, the librarian at St Bride Printing Library in London, took a 1914 Cicero translation and scrambled it to make dummy text for Letraset's Body Type sheets. It has survived not only many decades, but also the leap into electronic typesetting, remaining essentially unchanged.</p>
+              <p>Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since 1966, when designers at Letraset and James Mosley, the librarian at St Bride Printing Library in London, took a 1914 Cicero translation and scrambled it to make dummy text for Letraset's Body Type sheets. It has survived not only many decades, but also the leap into electronic typesetting, remaining essentially unchanged.</p>
+              @if (!readonlyMode()) { <button type="button" class="quiet-button" (click)="openElementsDialog()">+ Add Activity</button> }
+            }
+          </article>
+        </section>
+      </div>
+    }
+  </section>
+
+  @if (showTemplateDialog()) {
+    <dialog #templateDialog class="modal-layer" aria-labelledby="ebook-type-heading" (cancel)="onTemplateCancel($event)">
+      <section class="dialog-card template-picker-card">
+        <h2 id="ebook-type-heading" class="dialog-title">Ebook</h2>
+        <button type="button" class="dialog-close" aria-label="Close Ebook" (click)="closeEditor()">×</button>
+        <div class="template-options">
+          @for (option of templateOptions; track option.value) {
+            <button type="button" class="template-option" [class.is-selected]="pickedTemplate() === option.value" (click)="chooseTemplate(option.value)">{{ option.label }}</button>
+          }
+        </div>
+        @if (pickedTemplate()) {
+          <label class="field-label" for="ebook-name">Activity Name <span aria-hidden="true">*</span></label>
+          <input id="ebook-name" class="form-field" maxlength="100" [value]="activityName()" (input)="setActivityName($event)" placeholder="Enter Activity Name" required />
+          <p class="text-entry-placeholder">{{ activityName().length }}/100 characters</p>
+          <div class="dialog-actions">
+            <input #ebookFile type="file" (change)="onFileSelected($event)" class="visually-hidden" aria-label="Select an Ebook file to upload" />
+            <button type="button" class="quiet-button" (click)="ebookFile.click()">{{ pendingFile() ? pendingFile()!.name : 'Upload File' }}</button>
+            <button type="button" class="quiet-button" (click)="openImport()">Import Existing</button>
+          </div>
+          @if (formError()) { <p class="form-error" role="alert">{{ formError() }}</p> }
+          <div class="dialog-actions">
+            <button type="button" class="quiet-button" (click)="closeEditor()">Cancel</button>
+            <button type="button" class="action-button" [disabled]="!activityName().trim() || isSaving()" (click)="startEbook()">Save</button>
+          </div>
+        }
+      </section>
+    </dialog>
+  }
+
+  @if (showElementsDialog()) {
+    <dialog #elementsDialog class="modal-layer" aria-labelledby="elements-heading" (cancel)="onElementsCancel($event)">
+      <section class="dialog-card dialog-wide">
+        <h2 id="elements-heading" class="dialog-title">Add section</h2>
+        <button type="button" class="dialog-close" aria-label="Close content elements" (click)="showElementsDialog.set(false)">×</button>
+        <div class="category-layout">
+          <nav class="category-list" aria-label="Content element types">
+            @for (category of elementCategories; track category) {
+              <button type="button" class="category-button" [class.is-selected]="activeCategory() === category" (click)="activeCategory.set(category)">{{ category }}</button>
+            }
+          </nav>
+          <div class="design-gallery-frame">
+            <div class="design-gallery" aria-label="Available designs">
+              @for (design of designCards; track design) {
+                <button type="button" class="design-card" [class.design-0]="design === 0" [class.design-1]="design === 1" [class.design-2]="design === 2" [class.design-3]="design === 3" [class.design-4]="design === 4" (click)="addElement(activeCategory(), design)">
+                  @if (design === 4 && activeCategory() === 'Ebook Covers') {
+                    <span class="design-4-label"><small>Ebook heading 4</small><strong>Ebook heading 1</strong><span aria-hidden="true">›</span></span>
+                  } @else {
+                    <span>{{ activeCategory() === 'Ebook Covers' ? 'Ebook heading 1' : activeCategory() }}</span>
+                  }
+                </button>
+              }
+            </div>
+          </div>
+        </div>
+      </section>
+    </dialog>
+  }
+
+  @if (showImportDialog()) {
+    <dialog #importDialog class="modal-layer" aria-labelledby="import-heading" (cancel)="onImportCancel($event)">
+      <section class="dialog-card">
+        <h2 id="import-heading" class="dialog-title">Import existing Ebook</h2>
+        <button type="button" class="dialog-close" aria-label="Close import list" (click)="showImportDialog.set(false)">×</button>
+        <div class="import-list">
+          @for (existing of importedEbooks(); track existing.id) {
+            <div class="import-row"><span>{{ existing.name }}</span><button type="button" class="action-button" (click)="importExisting(existing)">Import</button></div>
+          } @empty {
+            <p class="text-entry-placeholder">No saved Ebooks are available to import.</p>
+          }
+        </div>
+      </section>
+    </dialog>
+  }
+</main>
