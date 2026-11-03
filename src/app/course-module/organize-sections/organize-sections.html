@@ -398,7 +398,11 @@
   </div>
   }
 
-  <!-- Multimedia upload / edit dialog (Ebook pop-up is still a next-phase TODO) -->
+  @if (ebookSectionId() !== null) {
+  <app-ebook [courseName]="course.name" [sectionId]="ebookSectionId()" (closed)="closeEbookDialog()" />
+  }
+
+  <!-- Multimedia upload / edit dialog -->
   @if (resourceDialog(); as dialog) {
   <app-multimedia-upload [courseId]="course.id" [sectionId]="dialog.sectionId" [resource]="dialog.resource"
     (resourceSaved)="onResourceSaved($event)" (closed)="closeResourceDialog()" />

@@ -1,0 +1,11 @@
+#ebook-text-content:empty::before {
+  color: #a3a3a3;
+  content: attr(placeholder);
+  pointer-events: none;
+}
+
+#ebook-text-content :is(table, th, td) {
+  border: 1px solid #d4d4d4;
+  border-collapse: collapse;
+  padding: 0.25rem 0.5rem;
+}

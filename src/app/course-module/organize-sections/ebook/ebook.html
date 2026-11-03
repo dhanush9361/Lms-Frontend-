@@ -1,0 +1,1122 @@
+@if (mode() === 'chooser') {
+  <div
+    class="fixed inset-0 z-[120] grid place-items-center bg-black/25 p-4 backdrop-blur-[3px]"
+    (click)="requestClose()"
+  >
+    <section
+      class="relative w-[min(350px,94vw)] rounded-xl bg-white px-4 pb-5 pt-4 shadow-2xl"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="ebook-picker-title"
+      (click)="$event.stopPropagation()"
+    >
+      <button
+        type="button"
+        id="ebook-picker-close"
+        class="absolute right-0 top-0 grid size-9 place-items-center rounded-bl-lg rounded-tr-xl bg-[#f45d5c] text-2xl leading-none text-white hover:bg-[#dc4c4c] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#3e8d99]"
+        aria-label="Close Ebook options"
+        (click)="requestClose()"
+      >
+        ×
+      </button>
+      <h1 id="ebook-picker-title" class="mb-4 pl-1 text-lg font-medium text-neutral-700">Ebook</h1>
+      <div class="space-y-4">
+        @for (option of presets; track option) {
+          <button
+            type="button"
+            class="h-[46px] w-full rounded-xl bg-[#f4f4f4] px-5 text-left text-xs text-neutral-600 transition hover:bg-[#eaf6f8] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#61b7c5]"
+            (click)="choosePreset(option)"
+          >
+            {{ option }}
+          </button>
+        }
+      </div>
+    </section>
+  </div>
+}
+
+@if (mode() === 'name') {
+  <div
+    class="fixed inset-0 z-[120] grid place-items-center bg-black/30 p-4 backdrop-blur-[3px]"
+    (click)="requestClose()"
+  >
+    <section
+      class="relative w-[min(420px,94vw)] rounded-2xl bg-white p-6 shadow-2xl"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="ebook-name-title"
+      (click)="$event.stopPropagation()"
+    >
+      <button
+        type="button"
+        class="absolute right-0 top-0 grid size-9 place-items-center rounded-bl-lg rounded-tr-2xl bg-[#f45d5c] text-2xl leading-none text-white hover:bg-[#dc4c4c]"
+        aria-label="Close Activity Name"
+        (click)="requestClose()"
+      >
+        ×
+      </button>
+      <h1 id="ebook-name-title" class="text-lg font-semibold text-neutral-700">Activity Name</h1>
+      <p class="mt-1 text-xs text-neutral-500">{{ preset() }}</p>
+      <label for="ebook-activity-name" class="mt-5 block text-xs font-medium text-neutral-700"
+        >Activity Name <span class="text-red-600">*</span></label
+      >
+      <input
+        id="ebook-activity-name"
+        type="text"
+        maxlength="100"
+        autocomplete="off"
+        class="mt-2 h-11 w-full rounded-lg bg-[#f4f4f4] px-4 text-sm text-neutral-700 outline-none ring-[#61b7c5] focus:ring-2"
+        [value]="activityName()"
+        (input)="updateActivityName($event)"
+        (keydown.enter)="saveActivityName()"
+        aria-describedby="ebook-activity-name-hint ebook-activity-name-error"
+        autofocus
+      />
+      <p id="ebook-activity-name-hint" class="mt-1 text-[10px] text-neutral-500">
+        Required. Up to 100 characters.
+      </p>
+      @if (activityNameError()) {
+        <p id="ebook-activity-name-error" class="mt-2 text-xs text-red-700" role="alert">
+          {{ activityNameError() }}
+        </p>
+      }
+      <div class="mt-6 flex justify-end gap-2">
+        <button
+          type="button"
+          class="h-9 rounded-lg bg-neutral-100 px-4 text-xs text-neutral-700 hover:bg-neutral-200"
+          (click)="requestClose()"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          class="h-9 rounded-lg bg-[#61b7c5] px-5 text-xs font-medium text-white hover:bg-[#489daa]"
+          (click)="saveActivityName()"
+        >
+          Continue
+        </button>
+      </div>
+    </section>
+  </div>
+}
+
+@if (mode() === 'editor') {
+  <div
+    class="fixed inset-x-0 bottom-0 top-16 z-[35] overflow-y-auto bg-[#f5f5f5] text-[#555] sm:left-[clamp(48px,4.5vw,84px)]"
+  >
+    @if (previewMode()) {
+      <header
+        class="sticky top-0 z-10 flex min-h-16 items-center justify-between border-b border-neutral-200 bg-white px-5 py-3 sm:px-8"
+      >
+        <div>
+          <p class="text-[11px] text-neutral-500">
+            Content Management › Course List › Organize Modules › E-Book › Preview
+          </p>
+          <h1 class="mt-1 text-sm font-semibold text-neutral-700">{{ activityName() }}</h1>
+        </div>
+        <button
+          type="button"
+          class="rounded-lg bg-[#61b7c5] px-4 py-2 text-xs font-medium text-white hover:bg-[#489daa]"
+          (click)="togglePreview()"
+        >
+          Back to editor
+        </button>
+      </header>
+      <main class="mx-auto max-w-5xl px-6 py-10 sm:px-10">
+        <h1 class="mb-8 text-3xl font-semibold text-neutral-700">{{ activityName() }}</h1>
+        @for (element of elements(); track element.id) {
+          <article class="mb-5 rounded-xl" [style]="previewStyle(element)">
+            @if (element.kind === 'divider') {
+              <div
+                class="mx-auto"
+                [style.width.%]="element.dividerWidth"
+                [style.height.px]="element.dividerHeight"
+                [style.background-color]="element.dividerFill"
+              ></div>
+            } @else {
+              @if (element.kind !== 'text') {
+                <h2 class="mb-2 text-lg font-semibold">{{ element.title }}</h2>
+              }
+              <p class="whitespace-pre-wrap">{{ element.content || element.title }}</p>
+              @if (element.fileName) {
+                <a
+                  class="mt-3 inline-block underline"
+                  [href]="element.fileUrl"
+                  [download]="element.fileName"
+                  >{{ element.fileName }}</a
+                >
+              }
+              @if (backgroundSummary(element); as backgroundInfo) {
+                <p class="mt-3 text-[10px] opacity-70">{{ backgroundInfo }}</p>
+              }
+            }
+          </article>
+        } @empty {
+          <p class="rounded-xl bg-white p-8 text-sm text-neutral-500">
+            No content has been added to this Ebook yet.
+          </p>
+        }
+      </main>
+    } @else {
+      <main class="mx-auto max-w-[1440px] px-4 py-5 sm:px-8 sm:py-7">
+        @if (importPanelOpen()) {
+          <div
+            class="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#dcecef] bg-white px-4 py-3"
+            role="status"
+          >
+            <div>
+              <p class="text-xs font-medium text-neutral-700">Import existing Ebook</p>
+              <p class="mt-1 text-[10px] text-neutral-500">
+                No existing Ebook records are available from the current frontend data source.
+              </p>
+            </div>
+            <button
+              type="button"
+              class="rounded-lg bg-neutral-100 px-3 py-2 text-[10px] text-neutral-600 hover:bg-neutral-200"
+              (click)="importPanelOpen.set(false)"
+            >
+              Close
+            </button>
+          </div>
+        }
+        @if (uploadMessage()) {
+          <p
+            class="mb-3 rounded-lg bg-[#eaf6f8] px-4 py-2 text-[10px] text-[#386f78]"
+            role="status"
+          >
+            {{ uploadMessage() }}
+          </p>
+        }
+        @if (errorMessage()) {
+          <p class="mb-3 rounded-lg bg-amber-50 px-4 py-3 text-xs text-amber-900" role="alert">
+            {{ errorMessage() }}
+          </p>
+        }
+
+        <section class="rounded-2xl bg-white p-3 shadow-sm sm:p-5">
+          <div class="grid gap-3 xl:grid-cols-[260px_minmax(0,1fr)]">
+            <aside class="rounded-xl bg-[#f5f5f5] p-3" aria-label="Ebook elements">
+              <div class="rounded-xl bg-white p-3">
+                <button
+                  type="button"
+                  class="mb-2 h-9 w-full rounded-full px-4 text-left text-[11px] transition"
+                  [class]="
+                    editorTab() === 'text'
+                      ? 'bg-[#eaf6f8] text-[#386f78]'
+                      : 'bg-[#f5f5f5] text-neutral-600 hover:bg-neutral-200'
+                  "
+                  [disabled]="selectedElement()?.kind !== 'text'"
+                  (click)="selectTab('text')"
+                >
+                  Ebook Text
+                </button>
+                <button
+                  type="button"
+                  class="mb-2 h-9 w-full rounded-full px-4 text-left text-[11px] transition"
+                  [class]="
+                    editorTab() === 'layout'
+                      ? 'bg-[#eaf6f8] text-[#386f78]'
+                      : 'bg-[#f5f5f5] text-neutral-600 hover:bg-neutral-200'
+                  "
+                  (click)="selectTab('layout')"
+                >
+                  Layouts
+                </button>
+                @for (element of elements(); track element.id) {
+                  <button
+                    type="button"
+                    class="mb-2 flex min-h-9 w-full items-center justify-between gap-2 rounded-full px-4 text-left text-[10px] transition"
+                    [class]="
+                      selectedElementId() === element.id
+                        ? 'bg-[#dff1f4] text-[#386f78]'
+                        : 'bg-[#f5f5f5] text-neutral-500 hover:bg-neutral-200'
+                    "
+                    [attr.aria-pressed]="selectedElementId() === element.id"
+                    (click)="selectElement(element)"
+                  >
+                    <span class="truncate">{{ element.title }}</span>
+                    <span aria-hidden="true">›</span>
+                  </button>
+                } @empty {
+                  <p class="rounded-lg bg-[#f5f5f5] px-4 py-3 text-[10px] text-neutral-400">
+                    Add content to begin.
+                  </p>
+                }
+                <button
+                  type="button"
+                  id="ebook-add-content"
+                  class="mt-1 w-full rounded-full border border-dashed border-[#61b7c5] px-4 py-2 text-[10px] text-[#3e8d99] hover:bg-[#f1fafb]"
+                  (click)="openContentDialog()"
+                >
+                  + Add content
+                </button>
+              </div>
+            </aside>
+
+            <section class="rounded-xl bg-[#f5f5f5] p-3 sm:p-5" aria-label="Ebook settings">
+              <div class="grid gap-3 xl:grid-cols-2">
+                @if (editorTab() === 'text' && selectedElement()?.kind === 'text') {
+                  <section class="rounded-xl bg-white p-4 sm:p-5">
+                    <h2 class="text-sm font-semibold text-neutral-700">Ebook Text Type</h2>
+                    <label
+                      for="ebook-text-type"
+                      class="mt-4 flex items-center justify-between gap-3 text-xs text-neutral-600"
+                    >
+                      Type
+                      <select
+                        id="ebook-text-type"
+                        class="h-8 min-w-36 rounded-md bg-[#f5f5f5] px-2 text-[10px] outline-none focus:ring-2 focus:ring-[#61b7c5]"
+                        [value]="selectedElement()?.textType"
+                        (change)="updateSelectedSetting('textType', $event)"
+                      >
+                        <option>Ebook Heading 1</option>
+                        <option>Ebook Heading 2</option>
+                        <option>Ebook Heading 3</option>
+                        <option>Ebook Heading 4</option>
+                        <option>Ebook Main Text</option>
+                      </select>
+                    </label>
+                  </section>
+
+                  <section class="rounded-xl bg-white p-4 sm:p-5">
+                    <h2 class="text-sm font-semibold text-neutral-700">Font Properties</h2>
+                    <label
+                      for="ebook-font-family"
+                      class="mt-3 flex items-center justify-between gap-3 text-xs text-neutral-600"
+                    >
+                      Font Family
+                      <select
+                        id="ebook-font-family"
+                        class="h-8 w-36 shrink-0 rounded-md bg-[#f5f5f5] px-2 text-[10px] outline-none focus:ring-2 focus:ring-[#61b7c5]"
+                        [value]="selectedElement()?.fontFamily"
+                        (change)="updateSelectedSetting('fontFamily', $event)"
+                      >
+                        <option>Work Sans</option>
+                        <option>Nunito Sans</option>
+                        <option>Source Sans Pro</option>
+                      </select>
+                    </label>
+                    <label
+                      for="ebook-opacity"
+                      class="mt-3 flex items-center justify-between gap-3 text-xs text-neutral-600"
+                    >
+                      Opacity
+                      <span class="relative h-8 w-36 shrink-0">
+                        <input
+                          id="ebook-opacity"
+                          type="number"
+                          min="0"
+                          max="100"
+                          class="h-8 w-full rounded-md bg-[#f5f5f5] px-2 pr-6 text-[10px] outline-none focus:ring-2 focus:ring-[#61b7c5]"
+                          [value]="selectedElement()?.opacity"
+                          (change)="updateSelectedSetting('opacity', $event)"
+                        />
+                        <span
+                          class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[10px]"
+                          aria-hidden="true"
+                          >%</span
+                        >
+                      </span>
+                    </label>
+                  </section>
+
+                  <section class="rounded-xl bg-white p-4 sm:p-5">
+                    <h2 class="text-sm font-semibold text-neutral-700">Text Content</h2>
+                    <div
+                      class="mt-3 flex flex-wrap items-center gap-0.5 border-b border-neutral-100 pb-2"
+                      role="toolbar"
+                      aria-label="Text formatting"
+                    >
+                      <button type="button" class="grid size-6 place-items-center rounded text-[11px] hover:bg-neutral-100" aria-label="Align left" title="Align left" (mousedown)="$event.preventDefault()" (click)="setTextAlignment('Left')">≡</button>
+                      <button type="button" class="grid size-6 place-items-center rounded text-[11px] hover:bg-neutral-100" aria-label="Align center" title="Align center" (mousedown)="$event.preventDefault()" (click)="setTextAlignment('Center')">☰</button>
+                      <button type="button" class="grid size-6 place-items-center rounded text-[11px] hover:bg-neutral-100" aria-label="Align right" title="Align right" (mousedown)="$event.preventDefault()" (click)="setTextAlignment('Right')">≡</button>
+                      <button type="button" class="grid size-6 place-items-center rounded text-[11px] hover:bg-neutral-100" aria-label="Insert table" title="Insert table" (mousedown)="$event.preventDefault()" (click)="insertTextTable()">▦</button>
+                      <button type="button" class="grid size-6 place-items-center rounded text-[11px] underline hover:bg-neutral-100" aria-label="Underline" title="Underline" (mousedown)="$event.preventDefault()" (click)="formatText('underline')">U</button>
+                      <button type="button" class="grid size-6 place-items-center rounded text-[11px] hover:bg-neutral-100" aria-label="Highlight text" title="Highlight text" (mousedown)="$event.preventDefault()" (click)="highlightText()">A</button>
+                      <button type="button" class="grid size-6 place-items-center rounded text-[11px] hover:bg-neutral-100" aria-label="Insert link" title="Insert link" (mousedown)="$event.preventDefault()" (click)="insertTextLink()">↗</button>
+                      <button type="button" class="grid size-6 place-items-center rounded text-[10px] hover:bg-neutral-100" aria-label="Clear formatting" title="Clear formatting" (mousedown)="$event.preventDefault()" (click)="formatText('removeFormat')">Tx</button>
+                      <button type="button" class="grid size-6 place-items-center rounded text-[10px] hover:bg-neutral-100" aria-label="Code" title="Code" (mousedown)="$event.preventDefault()" (click)="formatText('formatBlock')">&lt;/&gt;</button>
+                      <button type="button" class="grid size-6 place-items-center rounded text-[11px] hover:bg-neutral-100" aria-label="Bold" title="Bold" (mousedown)="$event.preventDefault()" (click)="formatText('bold')"><strong>B</strong></button>
+                      <button type="button" class="grid size-6 place-items-center rounded text-[11px] line-through hover:bg-neutral-100" aria-label="Strikethrough" title="Strikethrough" (mousedown)="$event.preventDefault()" (click)="formatText('strikeThrough')">S</button>
+                      <button type="button" class="grid size-6 place-items-center rounded text-[11px] italic hover:bg-neutral-100" aria-label="Italic" title="Italic" (mousedown)="$event.preventDefault()" (click)="formatText('italic')">I</button>
+                      <button type="button" class="grid size-6 place-items-center rounded text-[10px] hover:bg-neutral-100" aria-label="Superscript" title="Superscript" (mousedown)="$event.preventDefault()" (click)="formatText('superscript')">x²</button>
+                      <button type="button" class="grid size-6 place-items-center rounded text-[10px] hover:bg-neutral-100" aria-label="Subscript" title="Subscript" (mousedown)="$event.preventDefault()" (click)="formatText('subscript')">x₂</button>
+                      <button type="button" class="grid size-6 place-items-center rounded text-[11px] hover:bg-neutral-100" aria-label="Bulleted list" title="Bulleted list" (mousedown)="$event.preventDefault()" (click)="formatText('insertUnorderedList')">•≡</button>
+                      <button type="button" class="grid size-6 place-items-center rounded text-[10px] hover:bg-neutral-100" aria-label="Numbered list" title="Numbered list" (mousedown)="$event.preventDefault()" (click)="formatText('insertOrderedList')">1≡</button>
+                      <label class="relative grid size-6 place-items-center rounded hover:bg-neutral-100" title="Shadow position">
+                        <svg viewBox="0 0 24 24" class="size-3.5 fill-none stroke-current" stroke-width="1.8" aria-hidden="true">
+                          <circle cx="10" cy="10" r="6.5" />
+                          <path d="M14.8 14.8 20 20" stroke-linecap="round" />
+                        </svg>
+                        <select
+                          class="absolute inset-0 size-full cursor-pointer opacity-0"
+                          aria-label="Shadow position"
+                          [value]="selectedElement()?.shadowPosition"
+                          (change)="updateSelectedSetting('shadowPosition', $event)"
+                        >
+                          <option>None</option>
+                          <option>Left</option>
+                          <option>Right</option>
+                          <option>Bottom</option>
+                          <option>Round</option>
+                        </select>
+                      </label>
+                      <label class="flex h-6 items-center gap-0.5 rounded px-0.5 hover:bg-neutral-100" title="Shadow horizontal offset">
+                        <svg viewBox="0 0 24 24" class="size-3 fill-none stroke-current" stroke-width="1.8" aria-hidden="true">
+                          <path d="M4 12h16M7 9l-3 3 3 3m10-6 3 3-3 3" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                        <input
+                          type="number"
+                          class="w-7 bg-transparent text-[9px] outline-none"
+                          aria-label="Shadow horizontal offset"
+                          [value]="selectedElement()?.shadowHorizontal"
+                          (input)="updateSelectedSetting('shadowHorizontal', $event)"
+                        />
+                      </label>
+                      <label class="flex h-6 items-center gap-0.5 rounded px-0.5 hover:bg-neutral-100" title="Shadow vertical offset">
+                        <svg viewBox="0 0 24 24" class="size-3 fill-none stroke-current" stroke-width="1.8" aria-hidden="true">
+                          <path d="M12 4v16m-3-13 3-3 3 3m-6 10 3 3 3-3" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                        <input
+                          type="number"
+                          class="w-7 bg-transparent text-[9px] outline-none"
+                          aria-label="Shadow vertical offset"
+                          [value]="selectedElement()?.shadowVertical"
+                          (input)="updateSelectedSetting('shadowVertical', $event)"
+                        />
+                      </label>
+                      <label class="grid size-6 place-items-center rounded hover:bg-neutral-100" title="Shadow color">
+                        <input
+                          type="color"
+                          class="size-4 cursor-pointer rounded border-0 bg-transparent p-0"
+                          aria-label="Shadow color"
+                          [value]="selectedElement()?.shadowColor"
+                          (input)="updateSelectedSetting('shadowColor', $event)"
+                        />
+                      </label>
+                      <label class="flex h-6 items-center gap-0.5 rounded px-0.5 hover:bg-neutral-100" title="Shadow blur">
+                        <svg viewBox="0 0 24 24" class="size-3 fill-none stroke-current" stroke-width="1.8" aria-hidden="true">
+                          <circle cx="12" cy="12" r="3" />
+                          <path d="M12 2v3m0 14v3M2 12h3m14 0h3M4.9 4.9 7 7m10 10 2.1 2.1M19.1 4.9 17 7M7 17l-2.1 2.1" stroke-linecap="round" />
+                        </svg>
+                        <input
+                          type="number"
+                          min="0"
+                          class="w-7 bg-transparent text-[9px] outline-none"
+                          aria-label="Shadow blur"
+                          [value]="selectedElement()?.shadowBlur"
+                          (input)="updateSelectedSetting('shadowBlur', $event)"
+                        />
+                      </label>
+                    </div>
+                    <label for="ebook-text-content" class="sr-only">Text content</label>
+                    <div
+                      id="ebook-text-content"
+                      class="mt-2 min-h-12 w-full whitespace-pre-wrap rounded-md px-1 py-2 text-xs outline-none focus-visible:ring-2 focus-visible:ring-[#61b7c5]"
+                      placeholder="Enter Text"
+                      [innerHTML]="editorHtml()"
+                      [style.color]="selectedElement()?.textColor"
+                      [style.font-family]="selectedElement()?.fontFamily + ', sans-serif'"
+                      (input)="updateTextContent($event)"
+                      role="textbox"
+                      aria-multiline="true"
+                      aria-label="Text content"
+                      aria-placeholder="Enter Text"
+                      contenteditable="true"
+                      dir="ltr"
+                      aria-describedby="ebook-content-count"
+                    ></div>
+                    <p id="ebook-content-count" class="text-right text-[9px] text-neutral-400">
+                      {{ textContentLength(selectedElement()?.content ?? '') }}/500
+                    </p>
+                  </section>
+
+                  <section class="rounded-xl bg-white p-4 sm:p-5">
+                    <h2 class="text-sm font-semibold text-neutral-700">Text Color</h2>
+                    <div class="mt-4 flex items-center justify-between gap-3 text-xs text-neutral-600">
+                      <span>Color</span>
+                      <div class="flex items-center gap-1.5 rounded-md bg-[#f5f5f5] px-2 py-1">
+                      <label class="relative grid size-5 place-items-center rounded bg-white" title="Choose text color">
+                        <svg viewBox="0 0 24 24" class="size-3.5 fill-none stroke-neutral-600" stroke-width="1.8" aria-hidden="true">
+                          <path d="m14 6 4 4M4 20l4.5-1 10-10a2.1 2.1 0 0 0-3-3l-10 10L4 20Z" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                        <input
+                          id="ebook-text-color"
+                          type="color"
+                          class="absolute inset-0 size-full cursor-pointer opacity-0"
+                          aria-label="Choose text color"
+                          [value]="selectedElement()?.textColor"
+                          (input)="updateSelectedSetting('textColor', $event)"
+                        />
+                      </label>
+                      <span
+                        class="size-4 rounded"
+                        [style.background-color]="selectedElement()?.textColor"
+                        aria-hidden="true"
+                      ></span>
+                      <span class="text-[9px]">RGB</span>
+                      <input
+                        type="number"
+                        min="0"
+                        max="255"
+                        class="w-7 bg-transparent text-[9px] outline-none"
+                        aria-label="Red text color channel"
+                        [value]="textColorRgb().red"
+                        (input)="updateTextColorChannel('red', $event)"
+                      />
+                      <input
+                        type="number"
+                        min="0"
+                        max="255"
+                        class="w-7 bg-transparent text-[9px] outline-none"
+                        aria-label="Green text color channel"
+                        [value]="textColorRgb().green"
+                        (input)="updateTextColorChannel('green', $event)"
+                      />
+                      <input
+                        type="number"
+                        min="0"
+                        max="255"
+                        class="w-7 bg-transparent text-[9px] outline-none"
+                        aria-label="Blue text color channel"
+                        [value]="textColorRgb().blue"
+                        (input)="updateTextColorChannel('blue', $event)"
+                      />
+                      </div>
+                    </div>
+                  </section>
+
+                } @else if (editorTab() === 'layout') {
+                  <section class="rounded-xl bg-white p-4 sm:p-5 xl:col-span-2">
+                    <h2 class="text-sm font-semibold text-neutral-700">Layout</h2>
+                    <div class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                      <label class="text-[10px] text-neutral-600"
+                        >Alignment
+                        <select
+                          class="mt-1 h-9 w-full rounded-md bg-[#f5f5f5] px-2"
+                          [value]="selectedElement()?.alignment"
+                          (change)="updateSelectedSetting('alignment', $event)"
+                        >
+                          <option>Left</option>
+                          <option>Center</option>
+                          <option>Right</option>
+                        </select>
+                      </label>
+                      <label class="text-[10px] text-neutral-600"
+                        >Height
+                        <select
+                          class="mt-1 h-9 w-full rounded-md bg-[#f5f5f5] px-2"
+                          [value]="selectedElement()?.height"
+                          (change)="updateSelectedSetting('height', $event)"
+                        >
+                          <option>Extra Small</option>
+                          <option>Small</option>
+                          <option>Normal</option>
+                          <option>Large</option>
+                          <option>Extra Large</option>
+                        </select>
+                      </label>
+                      <label class="text-[10px] text-neutral-600"
+                        >Width
+                        <select
+                          class="mt-1 h-9 w-full rounded-md bg-[#f5f5f5] px-2"
+                          [value]="selectedElement()?.width"
+                          (change)="updateSelectedSetting('width', $event)"
+                        >
+                          <option>Full</option>
+                          <option>Wide</option>
+                          <option>Normal</option>
+                          <option>Narrow</option>
+                        </select>
+                      </label>
+                      @if (selectedElement()?.kind === 'text') {
+                        <label class="text-[10px] text-neutral-600"
+                          >Box Appearance · Color
+                          <input
+                            type="color"
+                            class="mt-1 h-9 w-full rounded-md bg-[#f5f5f5] p-1"
+                            [value]="selectedElement()?.boxColor"
+                            (input)="updateSelectedSetting('boxColor', $event)"
+                          />
+                        </label>
+                      }
+                      <label class="text-[10px] text-neutral-600"
+                        >Border Style
+                        <select
+                          class="mt-1 h-9 w-full rounded-md bg-[#f5f5f5] px-2"
+                          [value]="selectedElement()?.borderStyle"
+                          (change)="updateSelectedSetting('borderStyle', $event)"
+                        >
+                          <option>No Border</option>
+                          <option>Solid</option>
+                          <option>Dashed</option>
+                          <option>Dotted</option>
+                        </select>
+                      </label>
+                      <label class="text-[10px] text-neutral-600"
+                        >Border Color
+                        <input
+                          type="color"
+                          class="mt-1 h-9 w-full rounded-md bg-[#f5f5f5] p-1"
+                          [value]="selectedElement()?.borderColor"
+                          (input)="updateSelectedSetting('borderColor', $event)"
+                        />
+                      </label>
+                      <label class="text-[10px] text-neutral-600"
+                        >Border Radius
+                        <input
+                          type="number"
+                          min="0"
+                          class="mt-1 h-9 w-full rounded-md bg-[#f5f5f5] px-2"
+                          [value]="selectedElement()?.borderRadius"
+                          (input)="updateSelectedSetting('borderRadius', $event)"
+                        />
+                      </label>
+                    </div>
+                    <h3 class="mt-5 text-xs font-semibold text-neutral-700">Border (px)</h3>
+                    <div class="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                      <label class="text-[10px]"
+                        >Top<input
+                          type="number"
+                          min="0"
+                          class="mt-1 h-8 w-full rounded bg-[#f5f5f5] px-2"
+                          [value]="selectedElement()?.borderTop"
+                          (input)="updateSelectedSetting('borderTop', $event)"
+                      /></label>
+                      <label class="text-[10px]"
+                        >Right<input
+                          type="number"
+                          min="0"
+                          class="mt-1 h-8 w-full rounded bg-[#f5f5f5] px-2"
+                          [value]="selectedElement()?.borderRight"
+                          (input)="updateSelectedSetting('borderRight', $event)"
+                      /></label>
+                      <label class="text-[10px]"
+                        >Bottom<input
+                          type="number"
+                          min="0"
+                          class="mt-1 h-8 w-full rounded bg-[#f5f5f5] px-2"
+                          [value]="selectedElement()?.borderBottom"
+                          (input)="updateSelectedSetting('borderBottom', $event)"
+                      /></label>
+                      <label class="text-[10px]"
+                        >Left<input
+                          type="number"
+                          min="0"
+                          class="mt-1 h-8 w-full rounded bg-[#f5f5f5] px-2"
+                          [value]="selectedElement()?.borderLeft"
+                          (input)="updateSelectedSetting('borderLeft', $event)"
+                      /></label>
+                    </div>
+                    <h3 class="mt-5 text-xs font-semibold text-neutral-700">Padding (px)</h3>
+                    <div class="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                      <label class="text-[10px]"
+                        >Top<input
+                          type="number"
+                          min="0"
+                          class="mt-1 h-8 w-full rounded bg-[#f5f5f5] px-2"
+                          [value]="selectedElement()?.paddingTop"
+                          (input)="updateSelectedSetting('paddingTop', $event)"
+                      /></label>
+                      <label class="text-[10px]"
+                        >Right<input
+                          type="number"
+                          min="0"
+                          class="mt-1 h-8 w-full rounded bg-[#f5f5f5] px-2"
+                          [value]="selectedElement()?.paddingRight"
+                          (input)="updateSelectedSetting('paddingRight', $event)"
+                      /></label>
+                      <label class="text-[10px]"
+                        >Bottom<input
+                          type="number"
+                          min="0"
+                          class="mt-1 h-8 w-full rounded bg-[#f5f5f5] px-2"
+                          [value]="selectedElement()?.paddingBottom"
+                          (input)="updateSelectedSetting('paddingBottom', $event)"
+                      /></label>
+                      <label class="text-[10px]"
+                        >Left<input
+                          type="number"
+                          min="0"
+                          class="mt-1 h-8 w-full rounded bg-[#f5f5f5] px-2"
+                          [value]="selectedElement()?.paddingLeft"
+                          (input)="updateSelectedSetting('paddingLeft', $event)"
+                      /></label>
+                    </div>
+                    <h3 class="mt-5 text-xs font-semibold text-neutral-700">Margin (px)</h3>
+                    <div class="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                      <label class="text-[10px]"
+                        >Top<input
+                          type="number"
+                          class="mt-1 h-8 w-full rounded bg-[#f5f5f5] px-2"
+                          [value]="selectedElement()?.marginTop"
+                          (input)="updateSelectedSetting('marginTop', $event)"
+                      /></label>
+                      <label class="text-[10px]"
+                        >Right<input
+                          type="number"
+                          class="mt-1 h-8 w-full rounded bg-[#f5f5f5] px-2"
+                          [value]="selectedElement()?.marginRight"
+                          (input)="updateSelectedSetting('marginRight', $event)"
+                      /></label>
+                      <label class="text-[10px]"
+                        >Bottom<input
+                          type="number"
+                          class="mt-1 h-8 w-full rounded bg-[#f5f5f5] px-2"
+                          [value]="selectedElement()?.marginBottom"
+                          (input)="updateSelectedSetting('marginBottom', $event)"
+                      /></label>
+                      <label class="text-[10px]"
+                        >Left<input
+                          type="number"
+                          class="mt-1 h-8 w-full rounded bg-[#f5f5f5] px-2"
+                          [value]="selectedElement()?.marginLeft"
+                          (input)="updateSelectedSetting('marginLeft', $event)"
+                      /></label>
+                    </div>
+                  </section>
+                } @else if (selectedElement() && selectedElement()?.kind !== 'text') {
+                  <section class="rounded-xl bg-white p-4 sm:p-5 xl:col-span-2">
+                    <div class="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <h2 class="text-sm font-semibold text-neutral-700">Section Design</h2>
+                        <p class="mt-1 text-[10px] text-neutral-500">
+                          Settings apply to {{ selectedElement()?.title }} only.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        class="rounded-lg border border-dashed border-[#61b7c5] px-3 py-2 text-[10px] text-[#3e8d99] hover:bg-[#f1fafb]"
+                        (click)="addDivider()"
+                      >
+                        + Add divider
+                      </button>
+                    </div>
+                    @if (
+                      selectedElement()?.kind !== 'divider' &&
+                      selectedElement()?.kind !== 'external'
+                    ) {
+                      <div class="mt-4 grid gap-3 sm:grid-cols-2">
+                        <label class="text-[10px] text-neutral-600"
+                          >Element Title
+                          <input
+                            type="text"
+                            class="mt-1 h-9 w-full rounded-md bg-[#f5f5f5] px-2"
+                            [value]="selectedElement()?.title"
+                            (input)="updateSelectedSetting('title', $event)"
+                          />
+                        </label>
+                        <label class="text-[10px] text-neutral-600"
+                          >Element Content
+                          <textarea
+                            rows="2"
+                            maxlength="500"
+                            class="mt-1 w-full rounded-md bg-[#f5f5f5] px-2 py-2"
+                            [value]="selectedElement()?.content"
+                            (input)="updateSelectedSetting('content', $event)"
+                          ></textarea>
+                        </label>
+                      </div>
+                    }
+                    <div class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                      <label class="text-[10px] text-neutral-600"
+                        >Columns
+                        <select
+                          class="mt-1 h-9 w-full rounded-md bg-[#f5f5f5] px-2"
+                          [value]="selectedElement()?.columns"
+                          (change)="updateSelectedSetting('columns', $event)"
+                        >
+                          <option>One column</option>
+                          <option>Two columns</option>
+                          <option>Three columns</option>
+                        </select>
+                      </label>
+                      <label class="text-[10px] text-neutral-600"
+                        >Background
+                        <select
+                          class="mt-1 h-9 w-full rounded-md bg-[#f5f5f5] px-2"
+                          [value]="selectedElement()?.backgroundType"
+                          (change)="updateSelectedSetting('backgroundType', $event)"
+                        >
+                          <option>Color</option>
+                          <option>Image</option>
+                          <option>Video</option>
+                          <option>Embed</option>
+                          <option>SVG</option>
+                        </select>
+                      </label>
+                      @if (selectedElement()?.backgroundType === 'Color') {
+                        <label class="text-[10px] text-neutral-600"
+                          >Background Color<input
+                            type="color"
+                            class="mt-1 h-9 w-full rounded-md bg-[#f5f5f5] p-1"
+                            [value]="selectedElement()?.backgroundColor"
+                            (input)="updateSelectedSetting('backgroundColor', $event)"
+                        /></label>
+                      } @else if (selectedElement()?.backgroundType === 'Image') {
+                        <label class="text-[10px] text-neutral-600"
+                          >Image URL<input
+                            type="url"
+                            class="mt-1 h-9 w-full rounded-md bg-[#f5f5f5] px-2"
+                            placeholder="https://"
+                            [value]="selectedElement()?.backgroundAsset"
+                            (input)="updateSelectedSetting('backgroundAsset', $event)"
+                        /></label>
+                      } @else if (selectedElement()?.backgroundType === 'Video') {
+                        <label class="text-[10px] text-neutral-600"
+                          >Video URL<input
+                            type="url"
+                            class="mt-1 h-9 w-full rounded-md bg-[#f5f5f5] px-2"
+                            placeholder="https://"
+                            [value]="selectedElement()?.backgroundAsset"
+                            (input)="updateSelectedSetting('backgroundAsset', $event)"
+                        /></label>
+                      } @else {
+                        <label class="text-[10px] text-neutral-600"
+                          >Embed / SVG reference<textarea
+                            rows="2"
+                            class="mt-1 w-full rounded-md bg-[#f5f5f5] px-2 py-2"
+                            [value]="selectedElement()?.backgroundEmbed"
+                            (input)="updateSelectedSetting('backgroundEmbed', $event)"
+                          ></textarea>
+                        </label>
+                      }
+                      <label class="text-[10px] text-neutral-600"
+                        >Scroll Effect
+                        <select
+                          class="mt-1 h-9 w-full rounded-md bg-[#f5f5f5] px-2"
+                          [value]="selectedElement()?.scrollEffect"
+                          (change)="updateSelectedSetting('scrollEffect', $event)"
+                        >
+                          <option>None</option>
+                          <option>Zoom in</option>
+                          <option>Zoom out</option>
+                          <option>Parallax</option>
+                          <option>Close up</option>
+                          <option>Push Away</option>
+                          <option>Fixed</option>
+                        </select>
+                      </label>
+                      <label class="flex items-center gap-2 pt-5 text-[10px] text-neutral-600"
+                        ><input
+                          type="checkbox"
+                          [checked]="selectedElement()?.applyOverlay"
+                          (change)="setOverlayEnabled($event)"
+                        />
+                        Apply Overlay</label
+                      >
+                      @if (selectedElement()?.applyOverlay) {
+                        <label class="text-[10px] text-neutral-600"
+                          >Overlay Color<input
+                            type="color"
+                            class="mt-1 h-9 w-full rounded-md bg-[#f5f5f5] p-1"
+                            [value]="selectedElement()?.overlayColor"
+                            (input)="updateSelectedSetting('overlayColor', $event)"
+                        /></label>
+                        <label class="text-[10px] text-neutral-600"
+                          >Overlay Opacity (0–100%)<input
+                            type="number"
+                            min="0"
+                            max="100"
+                            class="mt-1 h-9 w-full rounded-md bg-[#f5f5f5] px-2"
+                            [value]="selectedElement()?.overlayOpacity"
+                            (input)="updateSelectedSetting('overlayOpacity', $event)"
+                        /></label>
+                      }
+                    </div>
+                    @if (selectedElement()?.kind === 'divider') {
+                      <h3 class="mt-5 text-xs font-semibold text-neutral-700">Divider</h3>
+                      <div class="mt-2 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                        <label class="text-[10px]"
+                          >Position<select
+                            class="mt-1 h-9 w-full rounded-md bg-[#f5f5f5] px-2"
+                            [value]="selectedElement()?.dividerPosition"
+                            (change)="updateSelectedSetting('dividerPosition', $event)"
+                          >
+                            <option>Top</option>
+                            <option>Bottom</option>
+                          </select></label
+                        >
+                        <label class="text-[10px]"
+                          >Fill Color<input
+                            type="color"
+                            class="mt-1 h-9 w-full rounded-md bg-[#f5f5f5] p-1"
+                            [value]="selectedElement()?.dividerFill"
+                            (input)="updateSelectedSetting('dividerFill', $event)"
+                        /></label>
+                        <label class="text-[10px]"
+                          >Width (0–400%)<input
+                            type="number"
+                            min="0"
+                            max="400"
+                            class="mt-1 h-9 w-full rounded-md bg-[#f5f5f5] px-2"
+                            [value]="selectedElement()?.dividerWidth"
+                            (input)="updateSelectedSetting('dividerWidth', $event)"
+                        /></label>
+                        <label class="text-[10px]"
+                          >Height (0–300 px)<input
+                            type="number"
+                            min="0"
+                            max="300"
+                            class="mt-1 h-9 w-full rounded-md bg-[#f5f5f5] px-2"
+                            [value]="selectedElement()?.dividerHeight"
+                            (input)="updateSelectedSetting('dividerHeight', $event)"
+                        /></label>
+                        <label class="text-[10px]"
+                          >Stacking Order<select
+                            class="mt-1 h-9 w-full rounded-md bg-[#f5f5f5] px-2"
+                            [value]="selectedElement()?.dividerStacking"
+                            (change)="updateSelectedSetting('dividerStacking', $event)"
+                          >
+                            <option>Back</option>
+                            <option>Front</option>
+                          </select></label
+                        >
+                        <label class="text-[10px]"
+                          >Horizontal Flip<select
+                            class="mt-1 h-9 w-full rounded-md bg-[#f5f5f5] px-2"
+                            [value]="selectedElement()?.dividerFlip"
+                            (change)="updateSelectedSetting('dividerFlip', $event)"
+                          >
+                            <option>No</option>
+                            <option>Yes</option>
+                          </select></label
+                        >
+                      </div>
+                    }
+                    @if (selectedElement()?.kind === 'download') {
+                      <p class="mt-4 rounded-lg bg-[#f5f5f5] p-3 text-[10px] text-neutral-600">
+                        {{
+                          selectedElement()?.fileName || selectedFileName() || 'No file selected.'
+                        }}
+                      </p>
+                    }
+                    @if (selectedElement()?.kind === 'external') {
+                      <label class="mt-4 block text-[10px] text-neutral-600"
+                        >External content URL<input
+                          type="url"
+                          class="mt-1 h-9 w-full rounded-md bg-[#f5f5f5] px-2"
+                          placeholder="https://"
+                          [value]="selectedElement()?.content"
+                          (input)="updateSelectedSetting('content', $event)"
+                      /></label>
+                    }
+                  </section>
+                } @else {
+                  <div
+                    class="rounded-xl bg-white p-8 text-center text-xs text-neutral-500 xl:col-span-2"
+                  >
+                    Select a text element or add content to edit its properties.
+                  </div>
+                }
+              </div>
+            </section>
+          </div>
+
+          <div class="mt-4 flex justify-end gap-2" aria-label="Editor controls">
+            <button
+              type="button"
+              class="grid size-9 place-items-center rounded-full bg-[#f4f7f7] text-[#61b7c5] hover:bg-[#e5f2f4]"
+              aria-label="Previous element"
+              title="Previous element"
+              [disabled]="!selectedElement() || elements()[0]?.id === selectedElementId()"
+              (click)="moveSelectedElement(-1)"
+            >
+              ◀
+            </button>
+            <button
+              type="button"
+              class="grid size-9 place-items-center rounded-full bg-[#f4f7f7] text-[#61b7c5] hover:bg-[#e5f2f4]"
+              aria-label="Next element"
+              title="Next element"
+              [disabled]="
+                !selectedElement() || elements()[elements().length - 1]?.id === selectedElementId()
+              "
+              (click)="moveSelectedElement(1)"
+            >
+              ▶
+            </button>
+          </div>
+
+          <section
+            class="mt-5 min-h-64 rounded-xl bg-white px-5 py-6 sm:px-8 sm:py-7"
+            aria-label="Ebook preview"
+          >
+            @for (element of previewElements(); track element.id) {
+              <article
+                class="mb-4 cursor-pointer rounded-lg transition hover:ring-1 hover:ring-[#61b7c5]/40"
+                [style]="previewStyle(element)"
+                [class]="selectedElementId() === element.id ? 'ring-2 ring-[#61b7c5]/50' : ''"
+                [attr.aria-label]="'Select ' + element.title"
+                tabindex="0"
+                (click)="selectElement(element)"
+                (keydown.enter)="selectElement(element)"
+              >
+                @if (element.kind === 'divider') {
+                  <div
+                    class="mx-auto"
+                    [style.width.%]="element.dividerWidth"
+                    [style.height.px]="element.dividerHeight"
+                    [style.background-color]="element.dividerFill"
+                  ></div>
+                } @else if (element.kind === 'text') {
+                  <div class="whitespace-pre-wrap" [innerHTML]="element.content"></div>
+                } @else {
+                  <div class="flex min-h-16 items-center justify-between gap-3">
+                    <div>
+                      <h2 class="text-base font-semibold">{{ element.title }}</h2>
+                      <p class="mt-1 whitespace-pre-wrap text-xs">{{ element.content }}</p>
+                    </div>
+                    @if (element.fileName) {
+                      <a
+                        class="shrink-0 rounded-lg bg-white/70 px-3 py-2 text-[10px] underline"
+                        [href]="element.fileUrl"
+                        [download]="element.fileName"
+                        (click)="$event.stopPropagation()"
+                        >{{ element.fileName }}</a
+                      >
+                    }
+                  </div>
+                  @if (backgroundSummary(element); as backgroundInfo) {
+                    <p class="mt-2 text-[10px] opacity-70">{{ backgroundInfo }}</p>
+                  }
+                }
+              </article>
+            } @empty {
+              <article class="text-[#555]">
+                <h1 class="text-3xl font-semibold">Enter a heading</h1>
+                <p class="mt-2 text-[11px] leading-relaxed">
+                  Lorem ipsum dolor sit amet, consectetur adipiscing elit. Praesent vitae
+                  consectetur quam. Sed posuere, massa at tincidunt consequat, justo erat
+                  ullamcorper neque, vitae posuere mauris erat sed ipsum.
+                </p>
+                <div class="mx-auto my-2 h-0.5 w-1/2 bg-neutral-200" aria-hidden="true"></div>
+                <h2 class="mt-3 text-lg font-semibold">Paragraph</h2>
+                <p class="mt-1 text-[11px] leading-relaxed">
+                  Lorem ipsum dolor sit amet, consectetur adipiscing elit. Praesent vitae
+                  consectetur quam. Sed posuere, massa at tincidunt consequat, justo erat
+                  ullamcorper neque, vitae posuere mauris erat sed ipsum.
+                </p>
+                <p class="mt-2 text-[11px] leading-relaxed">
+                  Lorem ipsum dolor sit amet, consectetur adipiscing elit. Praesent vitae
+                  consectetur quam. Sed posuere, massa at tincidunt consequat, justo erat
+                  ullamcorper neque, vitae posuere mauris erat sed ipsum.
+                </p>
+                <p class="mt-2 text-[11px] leading-relaxed">
+                  Lorem ipsum dolor sit amet, consectetur adipiscing elit. Praesent vitae
+                  consectetur quam. Sed posuere, massa at tincidunt consequat, justo erat
+                  ullamcorper neque, vitae posuere mauris erat sed ipsum.
+                </p>
+              </article>
+            }
+          </section>
+          <div class="mt-4 flex flex-wrap justify-between gap-2">
+              <button
+                type="button"
+                class="rounded-lg border border-dashed border-[#61b7c5] px-4 py-2 text-[10px] text-[#3e8d99] hover:bg-[#f1fafb]"
+                (click)="openContentDialog()"
+              >
+                + Add
+              </button>
+              <div class="flex gap-2">
+                <button
+                  type="button"
+                  class="rounded-lg bg-neutral-100 px-3 py-2 text-[10px] text-neutral-600 hover:bg-neutral-200"
+                  [disabled]="!selectedElement()"
+                  (click)="copySelectedElement()"
+                >
+                  Copy selected
+                </button>
+                <button
+                  type="button"
+                  class="rounded-lg bg-neutral-100 px-3 py-2 text-[10px] text-neutral-600 hover:bg-neutral-200"
+                  [disabled]="!selectedElement()"
+                  (click)="deleteSelectedElement()"
+                >
+                  Delete selected
+                </button>
+                <button
+                  type="button"
+                  class="rounded-lg bg-[#61b7c5] px-3 py-2 text-[10px] text-white hover:bg-[#489daa]"
+                  (click)="togglePreview()"
+                >
+                  Preview Ebook
+                </button>
+              </div>
+          </div>
+        </section>
+        <p class="mt-3 text-[10px] text-neutral-500" role="status">
+          The draft is held in memory while this editor is open. It is not saved to the server.
+        </p>
+      </main>
+    }
+  </div>
+}
+
+@if (contentDialogOpen()) {
+  <div
+    class="fixed inset-0 z-[130] grid place-items-center bg-black/25 p-4 backdrop-blur-[3px]"
+    (click)="closeContentDialog()"
+  >
+    <section
+      class="relative grid max-h-[90vh] w-[min(920px,96vw)] grid-rows-[auto_minmax(0,1fr)] rounded-xl bg-white p-5 shadow-2xl sm:p-7"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="ebook-add-section-title"
+      (click)="$event.stopPropagation()"
+    >
+      <button
+        type="button"
+        class="absolute right-0 top-0 z-10 grid size-11 place-items-center rounded-bl-lg rounded-tr-xl bg-[#f45d5c] text-2xl text-white hover:bg-[#dc4c4c]"
+        aria-label="Close Add section"
+        (click)="closeContentDialog()"
+      >
+        ×
+      </button>
+      <h2 id="ebook-add-section-title" class="mb-4 pr-12 text-lg font-medium text-neutral-700">
+        Add section
+      </h2>
+      <div class="grid min-h-0 gap-4 md:grid-cols-[205px_minmax(0,1fr)]">
+        <nav class="space-y-2 overflow-y-auto pr-1" aria-label="Content element categories">
+          @for (category of categories; track category) {
+            <button
+              type="button"
+              [id]="category === 'Ebook Covers' ? 'ebook-category-ebook-covers' : null"
+              class="h-11 w-full rounded-xl px-4 text-left text-[11px] transition"
+              [class]="
+                activeCategory() === category
+                  ? 'bg-[#eaf6f8] font-medium text-[#386f78]'
+                  : 'bg-[#f5f5f5] text-neutral-600 hover:bg-neutral-200'
+              "
+              [attr.aria-pressed]="activeCategory() === category"
+              (click)="activeCategory.set(category)"
+            >
+              {{ category }}
+            </button>
+          }
+        </nav>
+        <div class="min-h-0 overflow-y-auto rounded-xl bg-[#f5f5f5] p-3 sm:p-4">
+          <div
+            class="grid min-h-full content-start gap-3 rounded-xl bg-white p-3 sm:grid-cols-2 sm:p-4"
+          >
+            @for (template of templatesForCategory(activeCategory()); track template.title) {
+              <button
+                type="button"
+                class="group min-h-24 overflow-hidden border border-neutral-100 text-left transition hover:ring-2 hover:ring-[#61b7c5] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#61b7c5]"
+                [style.background-color]="template.color"
+                [style.color]="template.foreground"
+                [attr.aria-label]="'Add ' + template.title"
+                (click)="addTemplate(template)"
+              >
+                <span class="block border-b-4 border-black/10 px-4 py-5 text-xs font-bold">{{
+                  template.content
+                }}</span>
+                <span class="block px-4 py-2 text-[9px] opacity-70">{{ template.title }}</span>
+              </button>
+            }
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+}

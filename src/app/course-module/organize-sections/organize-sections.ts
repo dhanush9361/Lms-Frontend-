@@ -23,6 +23,7 @@ import {
   SectionManagementService,
 } from '../../services/Section management.service';
 import { MultimediaUpload } from '../pop-modals/multimedia-upload/multimedia-upload';
+import { Ebook } from './ebook/ebook';
 import { MultimediaManagementService } from '../../services/multimedia-management.service';
 import { MultimediaResource, MultimediaSaveResult } from '../multimedia.model';
 import { QuestionBankService, toUiError } from '../../services/question-bank.service';
@@ -54,7 +55,7 @@ export interface SectionActivity {
   selector: 'app-organize-sections',
   // CHANGED: block host so the fitted height (see updateFit) applies to the root element
   host: { class: 'block' },
-  imports: [MultimediaUpload],
+  imports: [MultimediaUpload, Ebook],
   templateUrl: './organize-sections.html',
   styleUrl: './organize-sections.css',
 })
@@ -176,6 +177,7 @@ export class OrganizeSections implements OnInit, AfterViewInit, OnDestroy {
   readonly resourceDialog = signal<{ sectionId: number; resource: MultimediaResource | null } | null>(
     null,
   );
+  readonly ebookSectionId = signal<number | null>(null);
 
   private pendingRetry: (() => void) | null = null;
   private toastTimer: ReturnType<typeof setTimeout> | undefined;
@@ -663,6 +665,10 @@ export class OrganizeSections implements OnInit, AfterViewInit, OnDestroy {
   /** Add Activity -> Multimedia opens the upload dialog; the pencil icon on a row opens it in edit mode. */
   openResourceDialog(kind: ActivityKind, sectionId: number, activity?: SectionActivity): void {
     this.activityMenuSectionId.set(null);
+    if (kind === 'Ebook') {
+      this.ebookSectionId.set(sectionId);
+      return;
+    }
     // the pencil icon of a Question Bank row opens that bank's editor
     if (kind === 'Question Bank') {
       if (activity) this.openQuestionBankList(sectionId, activity);
@@ -680,6 +686,10 @@ export class OrganizeSections implements OnInit, AfterViewInit, OnDestroy {
 
   closeResourceDialog(): void {
     this.resourceDialog.set(null);
+  }
+
+  closeEbookDialog(): void {
+    this.ebookSectionId.set(null);
   }
 
   /** <app-multimedia-upload> finished a successful upload / edit. */
