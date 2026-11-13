@@ -1,19 +1,10 @@
-<main class="min-h-[calc(100vh-4rem)] bg-[#f5f5f5] px-4 pb-5 pt-1 text-[#53585a] sm:px-6 lg:px-8">
-  <section class="mx-auto max-w-[1200px]">
-    <header class="flex flex-wrap items-center gap-x-4 gap-y-2">
-      <button
-        type="button"
-        class="flex shrink-0 items-center gap-1 text-[11px] text-[#74797a] transition hover:text-[#319eaf] focus-visible:outline-2 focus-visible:outline-[#319eaf]"
-        (click)="goBack()"
-      >
-        <span aria-hidden="true">‹</span>
-        Back
-      </button>
-
+<div class="relative w-full font-sans text-[#505050]">
+  <main class="relative z-10 px-4 pb-7 sm:px-6 lg:px-10">
+    <header class="my-2 mb-5 flex flex-wrap items-center gap-3">
       <div class="min-w-[168px]">
-        <h1 class="text-sm font-semibold text-[#4c5153] sm:text-base">Subscription &amp; Billing</h1>
-        <p class="mt-0.5 text-[10px] text-[#727779]">Review plan pricing and additional features</p>
-      </div>
+  <h1 class="text-sm font-semibold text-[#4c5153] sm:text-base">Subscription &amp; Billing</h1>
+  <p class="mt-0.5 text-[10px] text-[#727779]">Review plan pricing and additional features</p>
+</div>
 
       <button
         type="button"
@@ -72,27 +63,16 @@
       </p>
     }
 
-    @if (assignmentLoadError()) {
-      <p class="mt-3 rounded-lg bg-white px-4 py-2 text-xs text-[#687477]" role="status" aria-live="polite">
-        {{ assignmentLoadError() }}
+    @if (loadError()) {
+      <p class="mt-3 rounded-lg bg-white px-4 py-2 text-xs text-[#687477]" role="alert">
+        {{ loadError() }}
       </p>
     }
 
-    <section class="mt-4 min-h-[460px] overflow-y-auto rounded-2xl bg-white p-4 pr-8 pt-3 sm:max-h-[calc(108vh-220px)] sm:min-h-[calc(108vh-220px)] sm:ml-[52px] sm:w-[calc(100%-52px)] sm:p-6 sm:pr-8 sm:pt-3" aria-label="Available subscription plans">
+    <section class="min-h-[65vh] overflow-y-auto rounded-2xl bg-white p-4 pr-8 pt-5 sm:max-h-[calc(108vh-220px)] sm:min-h-[calc(108vh-220px)] sm:p-6 sm:pr-8" aria-label="Available subscription plans">
       @if (loading()) {
         <div class="grid min-h-[388px] place-items-center text-xs text-[#687477]" role="status">
           Loading subscription plans…
-        </div>
-      } @else if (loadError()) {
-        <div class="flex min-h-[388px] flex-col items-center justify-center gap-3 text-center">
-          <p class="text-xs text-[#687477]" role="alert">{{ loadError() }}</p>
-          <button
-            type="button"
-            class="min-h-8 rounded-full bg-[#65bdca] px-5 text-xs font-medium text-white hover:bg-[#319eaf] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#28636e]"
-            (click)="loadPackages()"
-          >
-            Try again
-          </button>
         </div>
       } @else if (!visiblePackages().length) {
         <div class="grid min-h-[388px] place-items-center text-xs text-[#687477]">
@@ -104,7 +84,7 @@
       >
         @for (plan of visiblePackages(); track plan.id) {
           <article
-            class="relative flex h-[clamp(420px,50vh,458px)] min-h-[420px] w-[clamp(182px,22vw,270px)] shrink-0 snap-start flex-col rounded-[18px] px-4 pb-5 pt-4"
+            class="relative flex h-[clamp(420px,50vh,458px)] min-h-[500px] w-[clamp(182px,22vw,270px)] shrink-0 snap-start flex-col rounded-[18px] px-4 pb-5 pt-4"
             [class.bg-[#8bcbd5]]="isPopular(plan)"
             [class.text-white]="isPopular(plan)"
             [class.bg-[#edf6f7]]="!isPopular(plan)"
@@ -130,7 +110,7 @@
               class="plan-price mt-1 flex min-h-[48px] items-baseline whitespace-nowrap text-[clamp(35px,3.8vw,46px)] font-semibold leading-[1.05] tabular-nums"
               [class.text-[#78c5d0]]="!isPopular(plan)"
             >
-              <span class="inline-block">{{ plan.price | currency:currency():'symbol':'1.0-2' }}</span>
+              {{ convertedPrice(plan.price) | currency:currency():'symbol':'1.0-2' }}
             </p>
             <p class="mt-1 min-h-3 text-[9px] leading-3">{{ plan.billingCycle }}</p>
             <p class="mt-2 min-h-7 line-clamp-2 text-[clamp(8px,0.9vw,11px)] leading-3">
@@ -158,8 +138,8 @@
       </div>
       }
     </section>
-  </section>
-</main>
+  </main>
+</div>
 
 @if (detailsOpen()) {
   <div
@@ -233,22 +213,28 @@
                 </div>
                 <div class="flex min-h-[34px] items-center justify-between gap-3 rounded-[10px] bg-white px-[10px]">
                   <dt class="text-[9px] text-[#303536]">Price</dt>
-                  <dd class="text-[9px] text-[#898e8f]">{{ item.price | currency:currency():'symbol':'1.0-2' }}</dd>
+                  <dd class="text-[9px] text-[#898e8f]">{{ convertedPrice(item.price) | currency:currency():'symbol':'1.0-2' }}</dd>
                 </div>
               </dl>
             } @else {
               <dl class="space-y-3">
                 <div class="flex min-h-[34px] items-center justify-between gap-3 rounded-[10px] bg-white px-[10px]">
                   <dt class="text-[9px] text-[#303536]">Current Plan</dt>
-                  <dd class="truncate text-[9px] text-[#898e8f]">Not available</dd>
+                  <dd class="truncate text-[9px] text-[#898e8f]">{{ mySubscription()?.packageName || 'No active plan' }}</dd>
                 </div>
                 <div class="flex min-h-[34px] items-center justify-between gap-3 rounded-[10px] bg-white px-[10px]">
                   <dt class="text-[9px] text-[#303536]">Start Date</dt>
-                  <dd class="text-[9px] text-[#898e8f]">Not available</dd>
+                  <dd class="text-[9px] text-[#898e8f]">{{ formatDate(mySubscription()?.assignedAt) }}</dd>
                 </div>
                 <div class="flex min-h-[34px] items-center justify-between gap-3 rounded-[10px] bg-white px-[10px]">
-                  <dt class="text-[9px] text-[#303536]">Expiry Date</dt>
-                  <dd class="text-[9px] text-[#898e8f]">Not available</dd>
+                  <dt class="text-[9px] text-[#303536]">Due Date</dt>
+                  <dd
+                    class="text-[9px]"
+                    [class.text-[#898e8f]]="!isPlanExpired()"
+                    [class.text-[#f65353]]="isPlanExpired()"
+                  >
+                    {{ formatDate(mySubscription()?.expiresAt) }}{{ isPlanExpired() ? ' (Expired)' : '' }}
+                  </dd>
                 </div>
               </dl>
             }
@@ -282,23 +268,23 @@
               <dl class="space-y-2">
                 <div class="flex min-h-[34px] items-center justify-between gap-3 rounded-[10px] bg-white px-[10px]">
                   <dt class="text-[9px] text-[#303536]">Billing Name</dt>
-                  <dd class="truncate text-[9px] text-[#898e8f]">Not available</dd>
+                  <dd class="truncate text-[9px] text-[#898e8f]">{{ myBilling()?.billingName || 'Not available' }}</dd>
                 </div>
                 <div class="flex min-h-[34px] items-center justify-between gap-3 rounded-[10px] bg-white px-[10px]">
                   <dt class="text-[9px] text-[#303536]">Company Name</dt>
-                  <dd class="truncate text-[9px] text-[#898e8f]">Not available</dd>
+                  <dd class="truncate text-[9px] text-[#898e8f]">{{ myBilling()?.companyName || 'Not available' }}</dd>
                 </div>
                 <div class="flex min-h-[34px] items-center justify-between gap-3 rounded-[10px] bg-white px-[10px]">
-                  <dt class="text-[9px] text-[#303536]">Billing Address</dt>
-                  <dd class="truncate text-[9px] text-[#898e8f]">Not available</dd>
+                  <dt class="shrink-0 text-[9px] text-[#303536]">Billing Address</dt>
+                  <dd class="truncate text-[9px] text-[#898e8f]" [attr.title]="billingAddress()">{{ billingAddress() || 'Not available' }}</dd>
                 </div>
                 <div class="flex min-h-[34px] items-center justify-between gap-3 rounded-[10px] bg-white px-[10px]">
                   <dt class="text-[9px] text-[#303536]">Billing Email</dt>
-                  <dd class="truncate text-[9px] text-[#898e8f]">Not available</dd>
+                  <dd class="truncate text-[9px] text-[#898e8f]">{{ myBilling()?.email || 'Not available' }}</dd>
                 </div>
                 <div class="flex min-h-[34px] items-center justify-between gap-3 rounded-[10px] bg-white px-[10px]">
                   <dt class="text-[9px] text-[#303536]">VAT Number</dt>
-                  <dd class="truncate text-[9px] text-[#898e8f]">Not available</dd>
+                  <dd class="truncate text-[9px] text-[#898e8f]">{{ myBilling()?.vatNumber || 'Not available' }}</dd>
                 </div>
               </dl>
             }

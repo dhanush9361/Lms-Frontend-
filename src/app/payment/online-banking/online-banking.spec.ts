@@ -1,17 +1,17 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
-import { BulkUser } from './bulk-user';
+import { OnlineBanking } from './online-banking';
 
-describe('BulkUser', () => {
-  let component: BulkUser;
-  let fixture: ComponentFixture<BulkUser>;
+describe('OnlineBanking', () => {
+  let component: OnlineBanking;
+  let fixture: ComponentFixture<OnlineBanking>;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [BulkUser],
+      imports: [OnlineBanking],
     }).compileComponents();
 
-    fixture = TestBed.createComponent(BulkUser);
+    fixture = TestBed.createComponent(OnlineBanking);
     component = fixture.componentInstance;
     await fixture.whenStable();
   });

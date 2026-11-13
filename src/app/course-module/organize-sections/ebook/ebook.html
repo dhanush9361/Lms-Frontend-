@@ -132,6 +132,7 @@
                 [style.width.%]="element.dividerWidth"
                 [style.height.px]="element.dividerHeight"
                 [style.background-color]="element.dividerFill"
+                [style.clip-path]="dividerClipPath(element.dividerStyle)"
               ></div>
             } @else {
               @if (element.kind !== 'text') {
@@ -195,20 +196,20 @@
 
         <section class="rounded-2xl bg-white p-3 shadow-sm sm:p-5">
           <div class="grid gap-3 xl:grid-cols-[260px_minmax(0,1fr)]">
-            <aside class="rounded-xl bg-[#f5f5f5] p-3" aria-label="Ebook elements">
+            <aside class="rounded-xl bg-[#f5f5f5] p-3" aria-label="Ebook sections and layouts">
               <div class="rounded-xl bg-white p-3">
                 <button
                   type="button"
                   class="mb-2 h-9 w-full rounded-full px-4 text-left text-[11px] transition"
                   [class]="
-                    editorTab() === 'text'
+                    (sectionLayoutFlow() && editorTab() === 'section') ||
+                    (!sectionLayoutFlow() && editorTab() === 'text')
                       ? 'bg-[#eaf6f8] text-[#386f78]'
                       : 'bg-[#f5f5f5] text-neutral-600 hover:bg-neutral-200'
                   "
-                  [disabled]="selectedElement()?.kind !== 'text'"
-                  (click)="selectTab('text')"
+                  (click)="selectTab(sectionLayoutFlow() ? 'section' : 'text')"
                 >
-                  Ebook Text
+                  {{ sectionLayoutFlow() ? 'Sections' : 'Ebook Text' }}
                 </button>
                 <button
                   type="button"
@@ -222,7 +223,7 @@
                 >
                   Layouts
                 </button>
-                @for (element of elements(); track element.id) {
+                @for (element of sidebarElements(); track element.id) {
                   <button
                     type="button"
                     class="mb-2 flex min-h-9 w-full items-center justify-between gap-2 rounded-full px-4 text-left text-[10px] transition"
@@ -253,9 +254,20 @@
               </div>
             </aside>
 
-            <section class="rounded-xl bg-[#f5f5f5] p-3 sm:p-5" aria-label="Ebook settings">
+            <section
+              class="relative rounded-none bg-[#f5f5f5] p-3 sm:p-5 xl:min-h-[282px]"
+              aria-label="Ebook settings"
+            >
               <div class="grid gap-3 xl:grid-cols-2">
-                @if (editorTab() === 'text' && selectedElement()?.kind === 'text') {
+                @if (awaitingSectionLayout()) {
+                  <div class="rounded-xl bg-white p-8 text-center text-xs text-neutral-500 xl:col-span-2">
+                    Choose Sections or Layouts to edit their settings.
+                  </div>
+                } @else if (
+                  editorTab() === 'text' &&
+                  selectedElement()?.kind === 'text' &&
+                  settingsPage() === 'main'
+                ) {
                   <section class="rounded-xl bg-white p-4 sm:p-5">
                     <h2 class="text-sm font-semibold text-neutral-700">Ebook Text Type</h2>
                     <label
@@ -343,71 +355,20 @@
                       <button type="button" class="grid size-6 place-items-center rounded text-[10px] hover:bg-neutral-100" aria-label="Subscript" title="Subscript" (mousedown)="$event.preventDefault()" (click)="formatText('subscript')">x₂</button>
                       <button type="button" class="grid size-6 place-items-center rounded text-[11px] hover:bg-neutral-100" aria-label="Bulleted list" title="Bulleted list" (mousedown)="$event.preventDefault()" (click)="formatText('insertUnorderedList')">•≡</button>
                       <button type="button" class="grid size-6 place-items-center rounded text-[10px] hover:bg-neutral-100" aria-label="Numbered list" title="Numbered list" (mousedown)="$event.preventDefault()" (click)="formatText('insertOrderedList')">1≡</button>
-                      <label class="relative grid size-6 place-items-center rounded hover:bg-neutral-100" title="Shadow position">
+                      <button
+                        type="button"
+                        class="flex h-6 items-center gap-0.5 rounded px-1 text-[10px] hover:bg-neutral-100"
+                        aria-label="Open Text Shadows settings"
+                        title="Text Shadows"
+                        (mousedown)="$event.preventDefault()"
+                        (click)="settingsPage.set('shadow')"
+                      >
                         <svg viewBox="0 0 24 24" class="size-3.5 fill-none stroke-current" stroke-width="1.8" aria-hidden="true">
                           <circle cx="10" cy="10" r="6.5" />
                           <path d="M14.8 14.8 20 20" stroke-linecap="round" />
                         </svg>
-                        <select
-                          class="absolute inset-0 size-full cursor-pointer opacity-0"
-                          aria-label="Shadow position"
-                          [value]="selectedElement()?.shadowPosition"
-                          (change)="updateSelectedSetting('shadowPosition', $event)"
-                        >
-                          <option>None</option>
-                          <option>Left</option>
-                          <option>Right</option>
-                          <option>Bottom</option>
-                          <option>Round</option>
-                        </select>
-                      </label>
-                      <label class="flex h-6 items-center gap-0.5 rounded px-0.5 hover:bg-neutral-100" title="Shadow horizontal offset">
-                        <svg viewBox="0 0 24 24" class="size-3 fill-none stroke-current" stroke-width="1.8" aria-hidden="true">
-                          <path d="M4 12h16M7 9l-3 3 3 3m10-6 3 3-3 3" stroke-linecap="round" stroke-linejoin="round" />
-                        </svg>
-                        <input
-                          type="number"
-                          class="w-7 bg-transparent text-[9px] outline-none"
-                          aria-label="Shadow horizontal offset"
-                          [value]="selectedElement()?.shadowHorizontal"
-                          (input)="updateSelectedSetting('shadowHorizontal', $event)"
-                        />
-                      </label>
-                      <label class="flex h-6 items-center gap-0.5 rounded px-0.5 hover:bg-neutral-100" title="Shadow vertical offset">
-                        <svg viewBox="0 0 24 24" class="size-3 fill-none stroke-current" stroke-width="1.8" aria-hidden="true">
-                          <path d="M12 4v16m-3-13 3-3 3 3m-6 10 3 3 3-3" stroke-linecap="round" stroke-linejoin="round" />
-                        </svg>
-                        <input
-                          type="number"
-                          class="w-7 bg-transparent text-[9px] outline-none"
-                          aria-label="Shadow vertical offset"
-                          [value]="selectedElement()?.shadowVertical"
-                          (input)="updateSelectedSetting('shadowVertical', $event)"
-                        />
-                      </label>
-                      <label class="grid size-6 place-items-center rounded hover:bg-neutral-100" title="Shadow color">
-                        <input
-                          type="color"
-                          class="size-4 cursor-pointer rounded border-0 bg-transparent p-0"
-                          aria-label="Shadow color"
-                          [value]="selectedElement()?.shadowColor"
-                          (input)="updateSelectedSetting('shadowColor', $event)"
-                        />
-                      </label>
-                      <label class="flex h-6 items-center gap-0.5 rounded px-0.5 hover:bg-neutral-100" title="Shadow blur">
-                        <svg viewBox="0 0 24 24" class="size-3 fill-none stroke-current" stroke-width="1.8" aria-hidden="true">
-                          <circle cx="12" cy="12" r="3" />
-                          <path d="M12 2v3m0 14v3M2 12h3m14 0h3M4.9 4.9 7 7m10 10 2.1 2.1M19.1 4.9 17 7M7 17l-2.1 2.1" stroke-linecap="round" />
-                        </svg>
-                        <input
-                          type="number"
-                          min="0"
-                          class="w-7 bg-transparent text-[9px] outline-none"
-                          aria-label="Shadow blur"
-                          [value]="selectedElement()?.shadowBlur"
-                          (input)="updateSelectedSetting('shadowBlur', $event)"
-                        />
-                      </label>
+                        <span aria-hidden="true">⌄</span>
+                      </button>
                     </div>
                     <label for="ebook-text-content" class="sr-only">Text content</label>
                     <div
@@ -486,64 +447,519 @@
                     </div>
                   </section>
 
-                } @else if (editorTab() === 'layout') {
-                  <section class="rounded-xl bg-white p-4 sm:p-5 xl:col-span-2">
-                    <h2 class="text-sm font-semibold text-neutral-700">Layout</h2>
-                    <div class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                      <label class="text-[10px] text-neutral-600"
-                        >Alignment
-                        <select
-                          class="mt-1 h-9 w-full rounded-md bg-[#f5f5f5] px-2"
-                          [value]="selectedElement()?.alignment"
-                          (change)="updateSelectedSetting('alignment', $event)"
-                        >
-                          <option>Left</option>
-                          <option>Center</option>
-                          <option>Right</option>
-                        </select>
-                      </label>
-                      <label class="text-[10px] text-neutral-600"
-                        >Height
-                        <select
-                          class="mt-1 h-9 w-full rounded-md bg-[#f5f5f5] px-2"
-                          [value]="selectedElement()?.height"
-                          (change)="updateSelectedSetting('height', $event)"
-                        >
-                          <option>Extra Small</option>
-                          <option>Small</option>
-                          <option>Normal</option>
-                          <option>Large</option>
-                          <option>Extra Large</option>
-                        </select>
-                      </label>
-                      <label class="text-[10px] text-neutral-600"
-                        >Width
-                        <select
-                          class="mt-1 h-9 w-full rounded-md bg-[#f5f5f5] px-2"
-                          [value]="selectedElement()?.width"
-                          (change)="updateSelectedSetting('width', $event)"
-                        >
-                          <option>Full</option>
-                          <option>Wide</option>
-                          <option>Normal</option>
-                          <option>Narrow</option>
-                        </select>
-                      </label>
-                      @if (selectedElement()?.kind === 'text') {
-                        <label class="text-[10px] text-neutral-600"
-                          >Box Appearance · Color
+                } @else if (
+                  editorTab() === 'text' &&
+                  selectedElement()?.kind === 'text' &&
+                  settingsPage() === 'shadow'
+                ) {
+                  <section class="rounded-xl bg-white p-4 sm:p-5">
+                    <div class="flex items-center justify-between gap-3">
+                      <h2 class="text-sm font-semibold text-neutral-700">Text Shadows</h2>
+                      <button
+                        type="button"
+                        class="rounded-md px-2 py-1 text-[10px] text-neutral-600 hover:bg-neutral-100"
+                        aria-label="Back to text settings"
+                        (click)="settingsPage.set('main')"
+                      >
+                        ← Back
+                      </button>
+                    </div>
+                    <div class="mt-4 flex flex-wrap gap-1" role="group" aria-label="Shadow position">
+                      <button
+                        type="button"
+                        class="grid h-10 w-[49px] shrink-0 content-center rounded-md px-1 py-1 text-center text-[9px]"
+                        [class]="selectedElement()?.shadowPosition === 'None' ? 'bg-[#eaf6f8] text-[#386f78]' : 'bg-[#f5f5f5] text-neutral-600 hover:bg-neutral-200'"
+                        [attr.aria-pressed]="selectedElement()?.shadowPosition === 'None'"
+                        (click)="setShadowPosition('None')"
+                      >
+                        <span class="text-[10px] font-medium leading-3">TEXT</span>
+                        <span class="text-[8px] leading-3">None</span>
+                      </button>
+                      <button
+                        type="button"
+                        class="grid h-10 w-[49px] shrink-0 content-center rounded-md px-1 py-1 text-center text-[9px]"
+                        [class]="selectedElement()?.shadowPosition === 'Left' ? 'bg-[#eaf6f8] text-[#386f78]' : 'bg-[#f5f5f5] text-neutral-600 hover:bg-neutral-200'"
+                        [attr.aria-pressed]="selectedElement()?.shadowPosition === 'Left'"
+                        (click)="setShadowPosition('Left')"
+                      >
+                        <span class="text-[10px] font-medium leading-3 [text-shadow:-1px_0_#888]">TEXT</span>
+                        <span class="text-[8px] leading-3">Left</span>
+                      </button>
+                      <button
+                        type="button"
+                        class="grid h-10 w-[49px] shrink-0 content-center rounded-md px-1 py-1 text-center text-[9px]"
+                        [class]="selectedElement()?.shadowPosition === 'Right' ? 'bg-[#eaf6f8] text-[#386f78]' : 'bg-[#f5f5f5] text-neutral-600 hover:bg-neutral-200'"
+                        [attr.aria-pressed]="selectedElement()?.shadowPosition === 'Right'"
+                        (click)="setShadowPosition('Right')"
+                      >
+                        <span class="text-[10px] font-medium leading-3 [text-shadow:1px_0_#888]">TEXT</span>
+                        <span class="text-[8px] leading-3">Right</span>
+                      </button>
+                      <button
+                        type="button"
+                        class="grid h-10 w-[49px] shrink-0 content-center rounded-md px-1 py-1 text-center text-[9px]"
+                        [class]="selectedElement()?.shadowPosition === 'Bottom' ? 'bg-[#eaf6f8] text-[#386f78]' : 'bg-[#f5f5f5] text-neutral-600 hover:bg-neutral-200'"
+                        [attr.aria-pressed]="selectedElement()?.shadowPosition === 'Bottom'"
+                        (click)="setShadowPosition('Bottom')"
+                      >
+                        <span class="text-[10px] font-medium leading-3 [text-shadow:0_1px_#888]">TEXT</span>
+                        <span class="text-[8px] leading-3">Bottom</span>
+                      </button>
+                      <button
+                        type="button"
+                        class="grid h-10 w-[49px] shrink-0 content-center rounded-md px-1 py-1 text-center text-[9px]"
+                        [class]="selectedElement()?.shadowPosition === 'Round' ? 'bg-[#eaf6f8] text-[#386f78]' : 'bg-[#f5f5f5] text-neutral-600 hover:bg-neutral-200'"
+                        [attr.aria-pressed]="selectedElement()?.shadowPosition === 'Round'"
+                        (click)="setShadowPosition('Round')"
+                      >
+                        <span class="text-[10px] font-medium leading-3 [text-shadow:0_0_2px_#888]">TEXT</span>
+                        <span class="text-[8px] leading-3">Round</span>
+                      </button>
+                    </div>
+                    <div class="mt-4 space-y-3">
+                      <label class="flex items-center justify-between gap-3 text-xs text-neutral-600">
+                        Horizontal Offset
+                        <span class="relative h-8 w-36 shrink-0">
                           <input
-                            type="color"
-                            class="mt-1 h-9 w-full rounded-md bg-[#f5f5f5] p-1"
-                            [value]="selectedElement()?.boxColor"
-                            (input)="updateSelectedSetting('boxColor', $event)"
+                            type="number"
+                            class="h-8 w-full rounded-md bg-[#f5f5f5] px-2 pr-7 text-[10px] outline-none focus:ring-2 focus:ring-[#61b7c5]"
+                            aria-label="Shadow horizontal offset"
+                            [value]="selectedElement()?.shadowHorizontal"
+                            (input)="updateSelectedSetting('shadowHorizontal', $event)"
                           />
-                        </label>
+                          <span class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[9px]">px</span>
+                        </span>
+                      </label>
+                      <label class="flex items-center justify-between gap-3 text-xs text-neutral-600">
+                        Vertical Offset
+                        <span class="relative h-8 w-36 shrink-0">
+                          <input
+                            type="number"
+                            class="h-8 w-full rounded-md bg-[#f5f5f5] px-2 pr-7 text-[10px] outline-none focus:ring-2 focus:ring-[#61b7c5]"
+                            aria-label="Shadow vertical offset"
+                            [value]="selectedElement()?.shadowVertical"
+                            (input)="updateSelectedSetting('shadowVertical', $event)"
+                          />
+                          <span class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[9px]">px</span>
+                        </span>
+                      </label>
+                      <div class="flex items-center justify-between gap-3 text-xs text-neutral-600">
+                        <span>Shadow Color</span>
+                        <div class="flex h-8 w-36 shrink-0 items-center justify-between gap-0.5 rounded-md bg-[#f5f5f5] px-1.5">
+                          <label class="relative grid size-5 shrink-0 place-items-center rounded bg-white" title="Choose shadow color">
+                            <svg viewBox="0 0 24 24" class="size-3.5 fill-none stroke-neutral-600" stroke-width="1.8" aria-hidden="true">
+                              <path d="m14 6 4 4M4 20l4.5-1 10-10a2.1 2.1 0 0 0-3-3l-10 10L4 20Z" stroke-linecap="round" stroke-linejoin="round" />
+                            </svg>
+                            <input
+                              type="color"
+                              class="absolute inset-0 size-full cursor-pointer opacity-0"
+                              aria-label="Choose shadow color"
+                              [value]="selectedElement()?.shadowColor"
+                              (input)="updateSelectedSetting('shadowColor', $event)"
+                            />
+                          </label>
+                          <span class="size-4 shrink-0 rounded" [style.background-color]="selectedElement()?.shadowColor" aria-hidden="true"></span>
+                          <span class="shrink-0 text-[9px]">RGB</span>
+                          <input
+                            type="number"
+                            min="0"
+                            max="255"
+                            class="w-5 shrink-0 bg-transparent text-[9px] outline-none"
+                            aria-label="Red shadow color channel"
+                            [value]="shadowColorRgb().red"
+                            (input)="updateShadowColorChannel('red', $event)"
+                          />
+                          <input
+                            type="number"
+                            min="0"
+                            max="255"
+                            class="w-5 shrink-0 bg-transparent text-[9px] outline-none"
+                            aria-label="Green shadow color channel"
+                            [value]="shadowColorRgb().green"
+                            (input)="updateShadowColorChannel('green', $event)"
+                          />
+                          <input
+                            type="number"
+                            min="0"
+                            max="255"
+                            class="w-5 shrink-0 bg-transparent text-[9px] outline-none"
+                            aria-label="Blue shadow color channel"
+                            [value]="shadowColorRgb().blue"
+                            (input)="updateShadowColorChannel('blue', $event)"
+                          />
+                        </div>
+                      </div>
+                      <label class="flex items-center justify-between gap-3 text-xs text-neutral-600">
+                        Blur
+                        <span class="relative h-8 w-36 shrink-0">
+                          <input
+                            type="number"
+                            min="0"
+                            class="h-8 w-full rounded-md bg-[#f5f5f5] px-2 pr-7 text-[10px] outline-none focus:ring-2 focus:ring-[#61b7c5]"
+                            aria-label="Shadow blur"
+                            [value]="selectedElement()?.shadowBlur"
+                            (input)="updateSelectedSetting('shadowBlur', $event)"
+                          />
+                          <span class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[9px]">px</span>
+                        </span>
+                      </label>
+                    </div>
+                  </section>
+                } @else if (
+                  editorTab() === 'section' &&
+                  sectionLayoutFlow() &&
+                  selectedElement() &&
+                  settingsStep() === 0
+                ) {
+                  <section class="rounded-xl bg-white p-4 sm:p-5">
+                    <h2 class="text-sm font-semibold text-neutral-700">Columns</h2>
+                    <label class="mt-4 flex items-center justify-between gap-3 text-xs text-neutral-600">
+                      Columns
+                      <select
+                        class="h-8 w-36 rounded-md bg-[#f5f5f5] px-2 text-[10px]"
+                        [value]="selectedElement()?.columns"
+                        (change)="updateSelectedSetting('columns', $event)"
+                      >
+                        <option>One column</option>
+                        <option>Two columns</option>
+                        <option>Three columns</option>
+                      </select>
+                    </label>
+                    <button
+                      type="button"
+                      class="mt-3 rounded-lg border border-dashed border-[#61b7c5] px-3 py-2 text-[10px] text-[#3e8d99] hover:bg-[#f1fafb] disabled:cursor-not-allowed disabled:opacity-50"
+                      [disabled]="selectedElement()?.columns === 'Three columns'"
+                      (click)="addColumn()"
+                    >
+                      + Add column
+                    </button>
+                    @if (selectedElement()?.kind !== 'text' && selectedElement()?.kind !== 'divider') {
+                      <label class="mt-4 block text-[10px] text-neutral-600">
+                        Section title
+                        <input
+                          type="text"
+                          class="mt-1 h-8 w-full rounded-md bg-[#f5f5f5] px-2"
+                          [value]="selectedElement()?.title"
+                          (input)="updateSelectedSetting('title', $event)"
+                        />
+                      </label>
+                    }
+                  </section>
+
+                  <section class="rounded-xl bg-white p-4 sm:p-5">
+                    <div class="flex items-center justify-between gap-3">
+                      <h2 class="text-sm font-semibold text-neutral-700">Overlay</h2>
+                      <label class="relative inline-flex cursor-pointer items-center">
+                        <input
+                          type="checkbox"
+                          class="peer sr-only"
+                          aria-label="Apply overlay"
+                          [checked]="selectedElement()?.applyOverlay"
+                          (change)="setOverlayEnabled($event)"
+                        />
+                        <span class="h-5 w-9 rounded-full bg-neutral-200 transition peer-checked:bg-[#61b7c5] peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-[#61b7c5]"></span>
+                        <span class="pointer-events-none absolute left-0.5 size-4 rounded-full bg-white transition peer-checked:translate-x-4"></span>
+                      </label>
+                    </div>
+                    @if (selectedElement()?.applyOverlay) {
+                      <label class="mt-4 flex items-center justify-between gap-3 text-xs text-neutral-600">
+                        Color
+                        <input
+                          type="color"
+                          class="h-8 w-36 rounded-md bg-[#f5f5f5] p-1"
+                          aria-label="Overlay color"
+                          [value]="selectedElement()?.overlayColor"
+                          (input)="updateSelectedSetting('overlayColor', $event)"
+                        />
+                      </label>
+                      <label class="mt-3 flex items-center justify-between gap-3 text-xs text-neutral-600">
+                        Opacity
+                        <span class="relative h-8 w-36">
+                          <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            class="h-8 w-full rounded-md bg-[#f5f5f5] px-2 pr-7 text-[10px]"
+                            [value]="selectedElement()?.overlayOpacity"
+                            (input)="updateSelectedSetting('overlayOpacity', $event)"
+                          />
+                          <span class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[10px]">%</span>
+                        </span>
+                      </label>
+                    }
+                  </section>
+
+                  <section class="rounded-xl bg-white p-4 sm:p-5 xl:col-span-2">
+                    <h2 class="text-sm font-semibold text-neutral-700">Background Scrolling Effects</h2>
+                    <label class="mt-4 flex items-center justify-between gap-3 text-xs text-neutral-600">
+                      Scroll Effects
+                      <select
+                        class="h-8 w-44 rounded-md bg-[#f5f5f5] px-2 text-[10px]"
+                        [value]="selectedElement()?.scrollEffect"
+                        (change)="updateSelectedSetting('scrollEffect', $event)"
+                      >
+                        <option>None</option>
+                        <option>Zoom in</option>
+                        <option>Zoom out</option>
+                        <option>Parallax</option>
+                        <option>Close up</option>
+                        <option>Push Away</option>
+                        <option>Fixed</option>
+                      </select>
+                    </label>
+                  </section>
+                } @else if (
+                  editorTab() === 'section' &&
+                  sectionLayoutFlow() &&
+                  selectedElement() &&
+                  settingsStep() === 1
+                ) {
+                  <section class="rounded-xl bg-white p-4 sm:p-5">
+                    <h2 class="text-sm font-semibold text-neutral-700">Background</h2>
+                    <div class="mt-4 flex flex-wrap gap-3" role="group" aria-label="Background type">
+                      @for (type of backgroundTypes; track type) {
+                        <button
+                          type="button"
+                          class="rounded px-1 py-1 text-[10px]"
+                          [class]="selectedElement()?.backgroundType === type ? 'font-semibold text-[#3e8d99]' : 'text-neutral-400 hover:text-neutral-600'"
+                          [attr.aria-pressed]="selectedElement()?.backgroundType === type"
+                          (click)="setBackgroundType(type)"
+                        >
+                          {{ type }}
+                        </button>
                       }
-                      <label class="text-[10px] text-neutral-600"
-                        >Border Style
+                    </div>
+                    @if (selectedElement()?.backgroundType === 'Color') {
+                      <label class="mt-4 flex items-center justify-between gap-3 text-xs text-neutral-600">
+                        Background Color
+                        <input
+                          type="color"
+                          class="h-8 w-36 rounded-md bg-[#f5f5f5] p-1"
+                          aria-label="Background color"
+                          [value]="selectedElement()?.backgroundColor"
+                          (input)="updateSelectedSetting('backgroundColor', $event)"
+                        />
+                      </label>
+                    } @else if (selectedElement()?.backgroundType === 'Image' || selectedElement()?.backgroundType === 'Video') {
+                      <label class="mt-4 block text-xs text-neutral-600">
+                        {{ selectedElement()?.backgroundType }} URL
+                        <input
+                          type="url"
+                          class="mt-2 h-8 w-full rounded-md bg-[#f5f5f5] px-2 text-[10px]"
+                          placeholder="https://"
+                          [value]="selectedElement()?.backgroundAsset"
+                          (input)="updateSelectedSetting('backgroundAsset', $event)"
+                        />
+                      </label>
+                    } @else {
+                      <label class="mt-4 block text-xs text-neutral-600">
+                        {{ selectedElement()?.backgroundType }} reference
+                        <textarea
+                          rows="3"
+                          class="mt-2 w-full rounded-md bg-[#f5f5f5] px-2 py-2 text-[10px]"
+                          [value]="selectedElement()?.backgroundEmbed"
+                          (input)="updateSelectedSetting('backgroundEmbed', $event)"
+                        ></textarea>
+                      </label>
+                    }
+                  </section>
+
+                  <section class="rounded-xl bg-white p-4 sm:p-5">
+                    <h2 class="text-sm font-semibold text-neutral-700">Divider</h2>
+                    <div class="mt-3 flex gap-4" role="group" aria-label="Divider position">
+                      @for (position of dividerPositions; track position) {
+                        <button
+                          type="button"
+                          class="border-b-2 px-1 py-1 text-[10px]"
+                          [class]="selectedElement()?.dividerPosition === position ? 'border-[#61b7c5] text-neutral-700' : 'border-transparent text-neutral-400'"
+                          [attr.aria-pressed]="selectedElement()?.dividerPosition === position"
+                          (click)="setDividerPosition(position)"
+                        >
+                          {{ position }}
+                        </button>
+                      }
+                    </div>
+                    <div class="mt-3 grid grid-cols-2 gap-2" role="group" aria-label="Divider style">
+                      @for (style of dividerStyles; track style) {
+                        <button
+                          type="button"
+                          class="rounded-lg border p-2 text-[9px] transition hover:border-[#61b7c5]"
+                          [class]="selectedElement()?.dividerStyle === style ? 'border-[#61b7c5] bg-[#f1fafb]' : 'border-neutral-100'"
+                          [attr.aria-pressed]="selectedElement()?.dividerStyle === style"
+                          (click)="setDividerStyle(style)"
+                        >
+                          <span class="mb-1 block h-4 rounded-sm bg-gradient-to-r from-amber-400 to-amber-300" aria-hidden="true">
+                            {{ style === 'None' ? '' : style === 'Waves' ? '⌁' : style === 'Triangle' ? '△' : style === 'Mountain' ? '⌃' : '∿' }}
+                          </span>
+                          {{ style }}
+                        </button>
+                      }
+                    </div>
+                  </section>
+                } @else if (
+                  editorTab() === 'layout' &&
+                  sectionLayoutFlow() &&
+                  settingsStep() === 0 &&
+                  selectedElement()
+                ) {
+                  <section class="rounded-xl bg-white p-4 sm:p-5">
+                    <h2 class="text-sm font-semibold text-neutral-700">Alignment</h2>
+                    <div class="mt-3 grid grid-cols-3 gap-2" role="group" aria-label="Alignment">
+                      @for (alignment of layoutAlignments; track alignment) {
+                        <button
+                          type="button"
+                          class="grid min-h-12 place-items-center rounded-lg px-2 py-1 text-[10px] transition hover:bg-[#f1fafb]"
+                          [class]="selectedElement()?.alignment === alignment ? 'bg-[#eaf6f8] text-[#386f78]' : 'bg-[#f8f8f8] text-neutral-600'"
+                          [attr.aria-pressed]="selectedElement()?.alignment === alignment"
+                          (click)="setLayoutAlignment(alignment)"
+                        >
+                          <span aria-hidden="true">{{ alignment === 'Left' ? '☷' : alignment === 'Center' ? '▤' : '☰' }}</span>
+                          {{ alignment }}
+                        </button>
+                      }
+                    </div>
+                  </section>
+                  <section class="rounded-xl bg-white p-4 sm:p-5">
+                    <h2 class="text-sm font-semibold text-neutral-700">Height</h2>
+                    <div class="mt-3 grid grid-cols-3 gap-2" role="group" aria-label="Height">
+                      @for (height of layoutHeights; track height) {
+                        <button
+                          type="button"
+                          class="grid min-h-12 place-items-center rounded-lg px-2 py-1 text-[10px] transition hover:bg-[#f1fafb]"
+                          [class]="selectedElement()?.height === height ? 'bg-[#eaf6f8] text-[#386f78]' : 'bg-[#f8f8f8] text-neutral-600'"
+                          [attr.aria-pressed]="selectedElement()?.height === height"
+                          (click)="setLayoutHeight(height)"
+                        >
+                          <span class="mb-1 block w-2 rounded-sm bg-[#61b7c5]" [class]="height === 'Small' ? 'h-1' : height === 'Normal' ? 'h-2' : 'h-3'" aria-hidden="true"></span>
+                          {{ height }}
+                        </button>
+                      }
+                    </div>
+                  </section>
+                  <section class="rounded-xl bg-white p-4 sm:p-5">
+                    <h2 class="text-sm font-semibold text-neutral-700">Width</h2>
+                    <div class="mt-3 grid grid-cols-3 gap-2" role="group" aria-label="Width">
+                      @for (width of layoutWidths; track width) {
+                        <button
+                          type="button"
+                          class="grid min-h-12 place-items-center rounded-lg px-2 py-1 text-[10px] transition hover:bg-[#f1fafb]"
+                          [class]="(width === 'Small' && selectedElement()?.width === 'Narrow') || (width === 'Normal' && selectedElement()?.width === 'Normal') || (width === 'Large' && selectedElement()?.width === 'Full') ? 'bg-[#eaf6f8] text-[#386f78]' : 'bg-[#f8f8f8] text-neutral-600'"
+                          [attr.aria-pressed]="(width === 'Small' && selectedElement()?.width === 'Narrow') || (width === 'Normal' && selectedElement()?.width === 'Normal') || (width === 'Large' && selectedElement()?.width === 'Full')"
+                          (click)="setLayoutWidth(width)"
+                        >
+                          <span class="mb-1 block h-2 rounded-sm bg-[#61b7c5]" [class]="width === 'Small' ? 'w-2' : width === 'Normal' ? 'w-4' : 'w-6'" aria-hidden="true"></span>
+                          {{ width }}
+                        </button>
+                      }
+                    </div>
+                  </section>
+                } @else if (
+                  editorTab() === 'layout' &&
+                  (!sectionLayoutFlow() || settingsStep() === 1)
+                ) {
+                  <section class="rounded-xl bg-white p-4 sm:p-5">
+                    <h2 class="text-sm font-semibold text-neutral-700">Box Model</h2>
+                    <div class="mt-4">
+                      <div class="flex gap-4" role="tablist" aria-label="Box model settings">
+                        <button
+                          type="button"
+                          role="tab"
+                          id="box-model-tab-border"
+                          class="text-xs"
+                          [class]="boxModelTab() === 'border' ? 'text-neutral-700' : 'text-neutral-400 hover:text-neutral-600'"
+                          [attr.aria-selected]="boxModelTab() === 'border'"
+                          aria-controls="box-model-panel-border"
+                          (click)="boxModelTab.set('border')"
+                        >
+                          Border
+                        </button>
+                        <button
+                          type="button"
+                          role="tab"
+                          id="box-model-tab-padding"
+                          class="text-xs"
+                          [class]="boxModelTab() === 'padding' ? 'text-neutral-700' : 'text-neutral-400 hover:text-neutral-600'"
+                          [attr.aria-selected]="boxModelTab() === 'padding'"
+                          aria-controls="box-model-panel-padding"
+                          (click)="boxModelTab.set('padding')"
+                        >
+                          Padding
+                        </button>
+                        <button
+                          type="button"
+                          role="tab"
+                          id="box-model-tab-margin"
+                          class="text-xs"
+                          [class]="boxModelTab() === 'margin' ? 'text-neutral-700' : 'text-neutral-400 hover:text-neutral-600'"
+                          [attr.aria-selected]="boxModelTab() === 'margin'"
+                          aria-controls="box-model-panel-margin"
+                          (click)="boxModelTab.set('margin')"
+                        >
+                          Margin
+                        </button>
+                      </div>
+                      @if (boxModelTab() === 'border') {
+                        <div id="box-model-panel-border" class="mt-4" role="tabpanel" aria-labelledby="box-model-tab-border">
+                          <div class="flex flex-col items-start">
+                            <span class="relative">
+                              <input
+                                type="number"
+                                min="0"
+                                class="h-[18px] w-[38px] rounded bg-[#f5f5f5] px-1 pr-3 text-center text-[8px] text-neutral-600"
+                                aria-label="Equal border width"
+                                [value]="boxModelEqualValue('border') ?? ''"
+                                (input)="updateBoxModelAll('border', $event)"
+                              />
+                              <span class="pointer-events-none absolute right-1 top-1/2 -translate-y-1/2 text-[7px] text-neutral-400">px</span>
+                            </span>
+                            <span class="mt-1 w-[38px] text-center text-[8px] text-neutral-500">Equal</span>
+                          </div>
+                          <div class="mt-3 flex gap-4">
+                            <label class="flex flex-col items-center text-[8px] text-neutral-500">Top<span class="relative"><input type="number" min="0" class="h-[18px] w-[38px] rounded bg-[#f5f5f5] px-1 pr-3 text-center text-[8px] text-neutral-600" [value]="selectedElement()?.borderTop" (input)="updateSelectedSetting('borderTop', $event)" /><span class="pointer-events-none absolute right-1 top-1/2 -translate-y-1/2 text-[7px] text-neutral-400">px</span></span></label>
+                            <label class="flex flex-col items-center text-[8px] text-neutral-500">Left<span class="relative"><input type="number" min="0" class="h-[18px] w-[38px] rounded bg-[#f5f5f5] px-1 pr-3 text-center text-[8px] text-neutral-600" [value]="selectedElement()?.borderLeft" (input)="updateSelectedSetting('borderLeft', $event)" /><span class="pointer-events-none absolute right-1 top-1/2 -translate-y-1/2 text-[7px] text-neutral-400">px</span></span></label>
+                            <label class="flex flex-col items-center text-[8px] text-neutral-500">Right<span class="relative"><input type="number" min="0" class="h-[18px] w-[38px] rounded bg-[#f5f5f5] px-1 pr-3 text-center text-[8px] text-neutral-600" [value]="selectedElement()?.borderRight" (input)="updateSelectedSetting('borderRight', $event)" /><span class="pointer-events-none absolute right-1 top-1/2 -translate-y-1/2 text-[7px] text-neutral-400">px</span></span></label>
+                            <label class="flex flex-col items-center text-[8px] text-neutral-500">Bottom<span class="relative"><input type="number" min="0" class="h-[18px] w-[38px] rounded bg-[#f5f5f5] px-1 pr-3 text-center text-[8px] text-neutral-600" [value]="selectedElement()?.borderBottom" (input)="updateSelectedSetting('borderBottom', $event)" /><span class="pointer-events-none absolute right-1 top-1/2 -translate-y-1/2 text-[7px] text-neutral-400">px</span></span></label>
+                          </div>
+                        </div>
+                      } @else if (boxModelTab() === 'padding') {
+                        <div id="box-model-panel-padding" class="mt-4" role="tabpanel" aria-labelledby="box-model-tab-padding">
+                          <div class="flex flex-col items-start">
+                            <span class="relative">
+                              <input type="number" min="0" class="h-[18px] w-[38px] rounded bg-[#f5f5f5] px-1 pr-3 text-center text-[8px] text-neutral-600" aria-label="Equal padding" [value]="boxModelEqualValue('padding') ?? ''" (input)="updateBoxModelAll('padding', $event)" />
+                              <span class="pointer-events-none absolute right-1 top-1/2 -translate-y-1/2 text-[7px] text-neutral-400">px</span>
+                            </span>
+                            <span class="mt-1 w-[38px] text-center text-[8px] text-neutral-500">Equal</span>
+                          </div>
+                          <div class="mt-3 flex gap-4">
+                            <label class="flex flex-col items-center text-[8px] text-neutral-500">Top<span class="relative"><input type="number" min="0" class="h-[18px] w-[38px] rounded bg-[#f5f5f5] px-1 pr-3 text-center text-[8px] text-neutral-600" [value]="selectedElement()?.paddingTop" (input)="updateSelectedSetting('paddingTop', $event)" /><span class="pointer-events-none absolute right-1 top-1/2 -translate-y-1/2 text-[7px] text-neutral-400">px</span></span></label>
+                            <label class="flex flex-col items-center text-[8px] text-neutral-500">Left<span class="relative"><input type="number" min="0" class="h-[18px] w-[38px] rounded bg-[#f5f5f5] px-1 pr-3 text-center text-[8px] text-neutral-600" [value]="selectedElement()?.paddingLeft" (input)="updateSelectedSetting('paddingLeft', $event)" /><span class="pointer-events-none absolute right-1 top-1/2 -translate-y-1/2 text-[7px] text-neutral-400">px</span></span></label>
+                            <label class="flex flex-col items-center text-[8px] text-neutral-500">Right<span class="relative"><input type="number" min="0" class="h-[18px] w-[38px] rounded bg-[#f5f5f5] px-1 pr-3 text-center text-[8px] text-neutral-600" [value]="selectedElement()?.paddingRight" (input)="updateSelectedSetting('paddingRight', $event)" /><span class="pointer-events-none absolute right-1 top-1/2 -translate-y-1/2 text-[7px] text-neutral-400">px</span></span></label>
+                            <label class="flex flex-col items-center text-[8px] text-neutral-500">Bottom<span class="relative"><input type="number" min="0" class="h-[18px] w-[38px] rounded bg-[#f5f5f5] px-1 pr-3 text-center text-[8px] text-neutral-600" [value]="selectedElement()?.paddingBottom" (input)="updateSelectedSetting('paddingBottom', $event)" /><span class="pointer-events-none absolute right-1 top-1/2 -translate-y-1/2 text-[7px] text-neutral-400">px</span></span></label>
+                          </div>
+                        </div>
+                      } @else {
+                        <div id="box-model-panel-margin" class="mt-4" role="tabpanel" aria-labelledby="box-model-tab-margin">
+                          <div class="flex flex-col items-start">
+                            <span class="relative">
+                              <input type="number" min="0" class="h-[18px] w-[38px] rounded bg-[#f5f5f5] px-1 pr-3 text-center text-[8px] text-neutral-600" aria-label="Equal margin" [value]="boxModelEqualValue('margin') ?? ''" (input)="updateBoxModelAll('margin', $event)" />
+                              <span class="pointer-events-none absolute right-1 top-1/2 -translate-y-1/2 text-[7px] text-neutral-400">px</span>
+                            </span>
+                            <span class="mt-1 w-[38px] text-center text-[8px] text-neutral-500">Equal</span>
+                          </div>
+                          <div class="mt-3 flex gap-4">
+                            <label class="flex flex-col items-center text-[8px] text-neutral-500">Top<span class="relative"><input type="number" min="0" class="h-[18px] w-[38px] rounded bg-[#f5f5f5] px-1 pr-3 text-center text-[8px] text-neutral-600" [value]="selectedElement()?.marginTop" (input)="updateSelectedSetting('marginTop', $event)" /><span class="pointer-events-none absolute right-1 top-1/2 -translate-y-1/2 text-[7px] text-neutral-400">px</span></span></label>
+                            <label class="flex flex-col items-center text-[8px] text-neutral-500">Left<span class="relative"><input type="number" min="0" class="h-[18px] w-[38px] rounded bg-[#f5f5f5] px-1 pr-3 text-center text-[8px] text-neutral-600" [value]="selectedElement()?.marginLeft" (input)="updateSelectedSetting('marginLeft', $event)" /><span class="pointer-events-none absolute right-1 top-1/2 -translate-y-1/2 text-[7px] text-neutral-400">px</span></span></label>
+                            <label class="flex flex-col items-center text-[8px] text-neutral-500">Right<span class="relative"><input type="number" min="0" class="h-[18px] w-[38px] rounded bg-[#f5f5f5] px-1 pr-3 text-center text-[8px] text-neutral-600" [value]="selectedElement()?.marginRight" (input)="updateSelectedSetting('marginRight', $event)" /><span class="pointer-events-none absolute right-1 top-1/2 -translate-y-1/2 text-[7px] text-neutral-400">px</span></span></label>
+                            <label class="flex flex-col items-center text-[8px] text-neutral-500">Bottom<span class="relative"><input type="number" min="0" class="h-[18px] w-[38px] rounded bg-[#f5f5f5] px-1 pr-3 text-center text-[8px] text-neutral-600" [value]="selectedElement()?.marginBottom" (input)="updateSelectedSetting('marginBottom', $event)" /><span class="pointer-events-none absolute right-1 top-1/2 -translate-y-1/2 text-[7px] text-neutral-400">px</span></span></label>
+                          </div>
+                        </div>
+                      }
+                    </div>
+                    <div class="mt-4 space-y-3">
+                      <label class="flex items-center justify-between gap-3 text-[10px] text-neutral-600">
+                        Border Style
                         <select
-                          class="mt-1 h-9 w-full rounded-md bg-[#f5f5f5] px-2"
+                          class="h-6 w-36 rounded-md bg-[#f5f5f5] px-2 text-[9px]"
                           [value]="selectedElement()?.borderStyle"
                           (change)="updateSelectedSetting('borderStyle', $event)"
                         >
@@ -553,126 +969,38 @@
                           <option>Dotted</option>
                         </select>
                       </label>
-                      <label class="text-[10px] text-neutral-600"
-                        >Border Color
-                        <input
-                          type="color"
-                          class="mt-1 h-9 w-full rounded-md bg-[#f5f5f5] p-1"
-                          [value]="selectedElement()?.borderColor"
-                          (input)="updateSelectedSetting('borderColor', $event)"
-                        />
-                      </label>
-                      <label class="text-[10px] text-neutral-600"
-                        >Border Radius
+                      <div class="flex items-center justify-between gap-3 text-[10px] text-neutral-600">
+                        <span>Border Color</span>
+                        <span class="flex h-7 items-center gap-1 rounded-md bg-[#f5f5f5] px-2">
+                          <label class="relative grid size-5 place-items-center rounded bg-white" title="Choose border color">
+                            <svg viewBox="0 0 24 24" class="size-3.5 fill-none stroke-neutral-600" stroke-width="1.8" aria-hidden="true">
+                              <path d="m14 6 4 4M4 20l4.5-1 10-10a2.1 2.1 0 0 0-3-3l-10 10L4 20Z" stroke-linecap="round" stroke-linejoin="round" />
+                            </svg>
+                            <input
+                              type="color"
+                              class="absolute inset-0 size-full cursor-pointer opacity-0"
+                              aria-label="Choose border color"
+                              [value]="selectedElement()?.borderColor"
+                              (input)="updateSelectedSetting('borderColor', $event)"
+                            />
+                          </label>
+                          <span class="size-4 rounded" [style.background-color]="selectedElement()?.borderColor" aria-hidden="true"></span>
+                          <span class="text-[9px] text-neutral-500">RGB</span>
+                          <span class="min-w-5 text-center text-[9px] text-neutral-600">{{ borderColorRgb().red }}</span>
+                          <span class="min-w-5 text-center text-[9px] text-neutral-600">{{ borderColorRgb().green }}</span>
+                          <span class="min-w-5 text-center text-[9px] text-neutral-600">{{ borderColorRgb().blue }}</span>
+                        </span>
+                      </div>
+                      <label class="flex items-center justify-between gap-3 text-[10px] text-neutral-600">
+                        Border Radius
                         <input
                           type="number"
                           min="0"
-                          class="mt-1 h-9 w-full rounded-md bg-[#f5f5f5] px-2"
+                          class="h-6 w-36 rounded-md bg-[#f5f5f5] px-2 text-[9px]"
                           [value]="selectedElement()?.borderRadius"
                           (input)="updateSelectedSetting('borderRadius', $event)"
                         />
                       </label>
-                    </div>
-                    <h3 class="mt-5 text-xs font-semibold text-neutral-700">Border (px)</h3>
-                    <div class="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                      <label class="text-[10px]"
-                        >Top<input
-                          type="number"
-                          min="0"
-                          class="mt-1 h-8 w-full rounded bg-[#f5f5f5] px-2"
-                          [value]="selectedElement()?.borderTop"
-                          (input)="updateSelectedSetting('borderTop', $event)"
-                      /></label>
-                      <label class="text-[10px]"
-                        >Right<input
-                          type="number"
-                          min="0"
-                          class="mt-1 h-8 w-full rounded bg-[#f5f5f5] px-2"
-                          [value]="selectedElement()?.borderRight"
-                          (input)="updateSelectedSetting('borderRight', $event)"
-                      /></label>
-                      <label class="text-[10px]"
-                        >Bottom<input
-                          type="number"
-                          min="0"
-                          class="mt-1 h-8 w-full rounded bg-[#f5f5f5] px-2"
-                          [value]="selectedElement()?.borderBottom"
-                          (input)="updateSelectedSetting('borderBottom', $event)"
-                      /></label>
-                      <label class="text-[10px]"
-                        >Left<input
-                          type="number"
-                          min="0"
-                          class="mt-1 h-8 w-full rounded bg-[#f5f5f5] px-2"
-                          [value]="selectedElement()?.borderLeft"
-                          (input)="updateSelectedSetting('borderLeft', $event)"
-                      /></label>
-                    </div>
-                    <h3 class="mt-5 text-xs font-semibold text-neutral-700">Padding (px)</h3>
-                    <div class="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                      <label class="text-[10px]"
-                        >Top<input
-                          type="number"
-                          min="0"
-                          class="mt-1 h-8 w-full rounded bg-[#f5f5f5] px-2"
-                          [value]="selectedElement()?.paddingTop"
-                          (input)="updateSelectedSetting('paddingTop', $event)"
-                      /></label>
-                      <label class="text-[10px]"
-                        >Right<input
-                          type="number"
-                          min="0"
-                          class="mt-1 h-8 w-full rounded bg-[#f5f5f5] px-2"
-                          [value]="selectedElement()?.paddingRight"
-                          (input)="updateSelectedSetting('paddingRight', $event)"
-                      /></label>
-                      <label class="text-[10px]"
-                        >Bottom<input
-                          type="number"
-                          min="0"
-                          class="mt-1 h-8 w-full rounded bg-[#f5f5f5] px-2"
-                          [value]="selectedElement()?.paddingBottom"
-                          (input)="updateSelectedSetting('paddingBottom', $event)"
-                      /></label>
-                      <label class="text-[10px]"
-                        >Left<input
-                          type="number"
-                          min="0"
-                          class="mt-1 h-8 w-full rounded bg-[#f5f5f5] px-2"
-                          [value]="selectedElement()?.paddingLeft"
-                          (input)="updateSelectedSetting('paddingLeft', $event)"
-                      /></label>
-                    </div>
-                    <h3 class="mt-5 text-xs font-semibold text-neutral-700">Margin (px)</h3>
-                    <div class="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                      <label class="text-[10px]"
-                        >Top<input
-                          type="number"
-                          class="mt-1 h-8 w-full rounded bg-[#f5f5f5] px-2"
-                          [value]="selectedElement()?.marginTop"
-                          (input)="updateSelectedSetting('marginTop', $event)"
-                      /></label>
-                      <label class="text-[10px]"
-                        >Right<input
-                          type="number"
-                          class="mt-1 h-8 w-full rounded bg-[#f5f5f5] px-2"
-                          [value]="selectedElement()?.marginRight"
-                          (input)="updateSelectedSetting('marginRight', $event)"
-                      /></label>
-                      <label class="text-[10px]"
-                        >Bottom<input
-                          type="number"
-                          class="mt-1 h-8 w-full rounded bg-[#f5f5f5] px-2"
-                          [value]="selectedElement()?.marginBottom"
-                          (input)="updateSelectedSetting('marginBottom', $event)"
-                      /></label>
-                      <label class="text-[10px]"
-                        >Left<input
-                          type="number"
-                          class="mt-1 h-8 w-full rounded bg-[#f5f5f5] px-2"
-                          [value]="selectedElement()?.marginLeft"
-                          (input)="updateSelectedSetting('marginLeft', $event)"
-                      /></label>
                     </div>
                   </section>
                 } @else if (selectedElement() && selectedElement()?.kind !== 'text') {
@@ -910,31 +1238,76 @@
                   </div>
                 }
               </div>
+              <div
+                class="mt-3 flex justify-end gap-4 xl:absolute xl:bottom-1 xl:right-2 xl:mt-0"
+                aria-label="Editor controls"
+              >
+                <button
+                  type="button"
+                  class="grid size-8 place-items-center rounded-full bg-[#f4f7f7] text-[11px] text-[#61b7c5] hover:bg-[#e5f2f4] disabled:cursor-not-allowed disabled:text-[#b6dce1] disabled:hover:bg-[#f4f7f7]"
+                  [attr.aria-label]="
+                    isTextSettingsNavigation()
+                      ? 'Previous text settings'
+                      : isSettingsStepNavigation()
+                        ? 'Previous settings'
+                        : 'Previous element'
+                  "
+                  [attr.title]="
+                    isTextSettingsNavigation()
+                      ? 'Previous text settings'
+                      : isSettingsStepNavigation()
+                        ? 'Previous settings'
+                        : 'Previous element'
+                  "
+                  [disabled]="
+                    isTextSettingsNavigation()
+                      ? settingsPage() === 'main'
+                      : isSettingsStepNavigation()
+                        ? settingsStep() === 0
+                        : !selectedElement() || elements()[0]?.id === selectedElementId()
+                  "
+                  (click)="handlePreviousControl()"
+                >
+                  ◀
+                </button>
+                <button
+                  type="button"
+                  class="grid size-8 place-items-center rounded-full bg-[#f4f7f7] text-[11px] text-[#61b7c5] hover:bg-[#e5f2f4] disabled:cursor-not-allowed disabled:text-[#b6dce1] disabled:hover:bg-[#f4f7f7]"
+                  [attr.aria-label]="
+                    isTextSettingsNavigation()
+                      ? 'Next text settings'
+                      : isSettingsStepNavigation()
+                        ? 'Next settings'
+                        : 'Next element'
+                  "
+                  [attr.title]="
+                    isTextSettingsNavigation()
+                      ? 'Next text settings'
+                      : isSettingsStepNavigation()
+                        ? 'Next settings'
+                        : 'Next element'
+                  "
+                  [disabled]="
+                    isTextSettingsNavigation()
+                      ? settingsPage() === 'shadow'
+                      : isSettingsStepNavigation()
+                        ? settingsStep() === 1
+                        : !selectedElement() ||
+                          elements()[elements().length - 1]?.id === selectedElementId()
+                  "
+                  (click)="handleNextControl()"
+                >
+                  ▶
+                </button>
+              </div>
             </section>
-          </div>
-
-          <div class="mt-4 flex justify-end gap-2" aria-label="Editor controls">
             <button
               type="button"
-              class="grid size-9 place-items-center rounded-full bg-[#f4f7f7] text-[#61b7c5] hover:bg-[#e5f2f4]"
-              aria-label="Previous element"
-              title="Previous element"
-              [disabled]="!selectedElement() || elements()[0]?.id === selectedElementId()"
-              (click)="moveSelectedElement(-1)"
+              id="ebook-add-section-layout"
+              class="mx-auto block w-[88%] rounded-full border border-dashed border-[#61b7c5] px-4 py-2 text-[10px] text-[#3e8d99] hover:bg-[#f1fafb] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#61b7c5] xl:col-start-2 xl:justify-self-center"
+              (click)="revealSectionLayoutTabs()"
             >
-              ◀
-            </button>
-            <button
-              type="button"
-              class="grid size-9 place-items-center rounded-full bg-[#f4f7f7] text-[#61b7c5] hover:bg-[#e5f2f4]"
-              aria-label="Next element"
-              title="Next element"
-              [disabled]="
-                !selectedElement() || elements()[elements().length - 1]?.id === selectedElementId()
-              "
-              (click)="moveSelectedElement(1)"
-            >
-              ▶
+              + Add
             </button>
           </div>
 
@@ -958,6 +1331,7 @@
                     [style.width.%]="element.dividerWidth"
                     [style.height.px]="element.dividerHeight"
                     [style.background-color]="element.dividerFill"
+                    [style.clip-path]="dividerClipPath(element.dividerStyle)"
                   ></div>
                 } @else if (element.kind === 'text') {
                   <div class="whitespace-pre-wrap" [innerHTML]="element.content"></div>
@@ -1102,16 +1476,154 @@
             @for (template of templatesForCategory(activeCategory()); track template.title) {
               <button
                 type="button"
-                class="group min-h-24 overflow-hidden border border-neutral-100 text-left transition hover:ring-2 hover:ring-[#61b7c5] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#61b7c5]"
+                class="group overflow-hidden border border-neutral-100 bg-white text-left transition hover:ring-2 hover:ring-[#61b7c5] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#61b7c5]"
+                [class.template-option--media]="template.previewType === 'media'"
+                [class.template-option--counter]="template.previewType === 'counter'"
+                [class.template-option--download]="template.previewType === 'download'"
+                [class.template-option--external]="template.previewType === 'external'"
+                [class.template-option--team]="template.previewType === 'team'"
+                [class.template-option--layout]="template.previewType === 'layout'"
                 [style.background-color]="template.color"
                 [style.color]="template.foreground"
                 [attr.aria-label]="'Add ' + template.title"
                 (click)="addTemplate(template)"
               >
-                <span class="block border-b-4 border-black/10 px-4 py-5 text-xs font-bold">{{
-                  template.content
-                }}</span>
-                <span class="block px-4 py-2 text-[9px] opacity-70">{{ template.title }}</span>
+                @if (!template.previewType) {
+                  <span class="block px-4 py-5 text-xs font-bold">{{ template.content }}</span>
+                  <span class="block px-4 py-2 text-[9px] opacity-70">{{ template.title }}</span>
+                } @else {
+                  <div class="template-art" aria-hidden="true">
+                    @switch (template.previewType) {
+                      @case ('media') {
+                        @switch (template.previewVariant) {
+                          @case (0) {
+                            <div class="media-art media-art--paragraph">
+                              <span></span><span></span><span></span><span></span>
+                            </div>
+                          }
+                          @case (1) {
+                            <div class="media-art">
+                              <strong>Ebook heading 1</strong>
+                              <span></span><span></span><span></span>
+                            </div>
+                          }
+                          @case (2) {
+                            <div class="media-art">
+                              <strong>Ebook heading 1</strong>
+                              <span></span><span></span><span></span>
+                            </div>
+                          }
+                          @case (3) {
+                            <div class="media-art media-art--subheads">
+                              <strong>Ebook heading 1</strong>
+                              <span></span><span></span>
+                              <strong>How Can Breaks Improve Your Study Sessions?</strong>
+                              <span></span><span></span>
+                            </div>
+                          }
+                          @case (4) {
+                            <div class="media-art media-art--list">
+                              <strong>What you will learn</strong>
+                              <span>✓ Learn the Art of Making</span><span>✓ Develop your professional skills</span>
+                              <span>✓ Become a better professional</span><span>✓ Utilize Online Training</span>
+                              <span>✓ Become a Smarter Learner</span><span>✓ Build confidence in modern scenarios</span>
+                            </div>
+                          }
+                          @case (5) {
+                            <div class="media-art media-art--list">
+                              <strong>Is this course for me?</strong>
+                              <b>This course is about...</b><b>This course is not about...</b>
+                              <span>✓ Developing skills</span><span>× Rote memorization</span>
+                              <span>✓ Applying knowledge</span><span>× Restrictive boundaries</span>
+                              <span>✓ Thinking out of the box</span><span>× Conventional thinking</span>
+                            </div>
+                          }
+                          @case (6) {
+                            <div class="media-art media-art--feature">
+                              <strong>Never stop improving</strong>
+                              <span>Dedication to consistent learning is key for an active and intuitive mind.</span>
+                              <i></i>
+                            </div>
+                          }
+                          @case (7) {
+                            <div class="media-art media-art--split">
+                              <strong>Your study<br />Your desk<br />Your temple</strong>
+                              <span></span><span></span><span></span><i></i>
+                            </div>
+                          }
+                        }
+                      }
+                      @case ('counter') {
+                        @if (template.previewVariant === 0) {
+                          <div class="counter-art">
+                            <div class="counter-intro"><strong>15 Years of<br />Experience</strong><i>Start learning</i></div>
+                            <div class="counter-stat"><b>♟</b><strong>1,500+</strong><small>Visitors</small></div>
+                            <div class="counter-stat"><b>▣</b><strong>90</strong><small>Assignments</small></div>
+                            <div class="counter-stat"><b>●</b><strong>90+</strong><small>Hours</small></div>
+                          </div>
+                        } @else {
+                          <div class="counter-art counter-art--rings">
+                            <div><i>70 %</i><small>Metric 1</small></div>
+                            <div><i>80 %</i><small>Metric 2</small></div>
+                            <div><i>90 %</i><small>Metric 3</small></div>
+                            <div><i>100 %</i><small>Metric 4</small></div>
+                          </div>
+                        }
+                      }
+                      @case ('download') {
+                        <div
+                          class="download-art"
+                          [class.download-art--featured]="template.previewVariant === 1"
+                        >
+                          @for (card of template.previewVariant === 0 ? [1, 2, 3] : [1, 2]; track card) {
+                            <div class="download-card">
+                              <i></i>
+                              <strong>{{ card === 1 ? 'Get your free digital guides!' : 'Download our resource' }}</strong>
+                              <span></span><span></span>
+                              <b>Download</b>
+                            </div>
+                          }
+                        </div>
+                      }
+                      @case ('external') {
+                        <div class="external-art"><strong>&lt;/&gt;</strong></div>
+                      }
+                      @case ('team') {
+                        @switch (template.previewVariant) {
+                          @case (0) {
+                            <div class="team-art team-art--bio">
+                              <i></i><div><strong>Jane Davis</strong><span></span><span></span><small>f&nbsp; ♥&nbsp; in</small></div><span></span><span></span><span></span>
+                            </div>
+                          }
+                          @case (1) {
+                            <div class="team-art team-art--stats">
+                              <b>100%<small>Success rate</small></b><b>12+<small>Years of experience</small></b><b>135K+<small>Students</small></b>
+                            </div>
+                          }
+                          @case (2) {
+                            <div class="team-art team-art--grid">
+                              <strong>Our core team</strong>
+                              @for (member of [1, 2, 3, 4, 5, 6]; track member) { <i></i> }
+                            </div>
+                          }
+                          @case (3) {
+                            <div class="team-art team-art--people">
+                              <strong>Team introduction</strong><span></span>
+                              @for (member of [1, 2, 3]; track member) { <i></i> }
+                            </div>
+                          }
+                        }
+                      }
+                      @case ('layout') {
+                        <div class="layout-art">
+                          @for (width of template.layoutWidths ?? []; track $index) {
+                            <div [style.flex]="width">{{ width }}%</div>
+                          }
+                        </div>
+                      }
+                    }
+                  </div>
+                }
               </button>
             }
           </div>

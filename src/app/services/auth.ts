@@ -6,6 +6,34 @@ import { TokenStorageService } from './token-storage.service';
 import { catchError, throwError } from 'rxjs';
 import { Router } from '@angular/router';
 
+export type AccessAction = 'create' | 'read' | 'update' | 'delete';
+export type PermissionFlags = Record<AccessAction, boolean>;
+
+/** "Needs `action` on `featureId`" - one requirement of a menu item / route / button. */
+export type AccessRequirement = readonly [featureId: string, action: AccessAction];
+
+/** Feature ids - the same ids the backend seeds (SystemFeatureSeeder). */
+export const FEATURE = {
+  COURSE_CREATE: 'COURSE_MGMT_CREATE_COURSE',
+  COURSE_LIST: 'COURSE_MGMT_COURSE_LIST',
+  COURSE_ORGANIZE: 'COURSE_MGMT_ORGANIZE_MODULES',
+  ENROLL_UNENROLL: 'ENROLLMENT_ENROLL_UNENROLL',
+  ENROLLED_LIST: 'ENROLLMENT_ENROLLED_LIST',
+  MULTIMEDIA: 'CONTENT_MGMT_MULTIMEDIA',
+  EBOOK: 'CONTENT_MGMT_EBOOK',
+} as const;
+
+/**
+ * Category ids (the same ids the backend seeds) whose LEFT MENU entry can be switched on in
+ * Package / Role Management. The category switch only decides whether the menu is shown; the
+ * create / read / update / delete flags decide what the user can do inside the page.
+ */
+export const MENU = {
+  COURSE: 'COURSE_MGMT',
+  CONTENT: 'CONTENT_MGMT',
+  ENROLLMENT: 'ENROLLMENT',
+} as const;
+
 export interface AuthUser {
   id: number;
   firstName: string;
@@ -14,6 +42,23 @@ export interface AuthUser {
   role: string;
   roles: string[];
   instructorId: number | null;
+  /** True for SUPER_ADMIN (app owner) only: every action is allowed. */
+  fullAccess: boolean;
+  /**
+   * True for the company's own ADMIN. Always sees Dashboard, Role Management and Subscription;
+   * every other menu / button comes from the package (see `permissions`).
+   */
+  companyAdmin: boolean;
+  /**
+   * What the user may do, keyed by feature id (empty when fullAccess):
+   * the package's features for the company ADMIN, the role's features (limited to the package) for everyone else.
+   */
+  permissions: Record<string, PermissionFlags>;
+  /**
+   * Category ids whose left-menu entry is visible (the category switch in Package / Role Management).
+   * Independent of `permissions`: "Course Management" can be ON while every Course action is OFF.
+   */
+  menus: string[];
 }
 
 export interface LoginResponse {
@@ -37,6 +82,23 @@ interface LoginApiData {
   role: string;
   roles?: string[];
   instructorId?: number | null;
+  fullAccess?: boolean;
+  companyAdmin?: boolean;
+  permissions?: PermissionGrantApi[];
+  menus?: string[];
+}
+
+/** One row of the backend's permission list (PermissionDto.Grant). */
+interface PermissionGrantApi extends PermissionFlags {
+  featureId: string;
+}
+
+/** Row shape for GET /api/profile/permissions. */
+interface PermissionsApiData {
+  fullAccess?: boolean;
+  companyAdmin?: boolean;
+  permissions?: PermissionGrantApi[];
+  menus?: string[];
 }
 
 /** Row shape for GET /api/auth/signup/admins — User-table fields only. */
@@ -68,7 +130,7 @@ export interface AdminListQuery {
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
-  
+
   private readonly apiUrl = `${environment.apiBaseUrl}/api/auth`;
 
   private readonly tokenStorage = inject(TokenStorageService);
@@ -76,6 +138,10 @@ export class AuthService {
   readonly user = signal<AuthUser | null>(null);
   readonly roleResolved = signal(true);
   readonly isSuperAdmin = computed(() => this.user()?.role === 'SUPER_ADMIN');
+  /** The company's own ADMIN (not an invited Instructor / Learner / custom role). */
+  readonly isCompanyAdmin = computed(() => !!this.user()?.companyAdmin);
+  /** An invited user whose role is literally LEARNER (the backend uses the same rule for the course list). */
+  readonly isLearner = computed(() => this.user()?.role?.trim().toUpperCase() === 'LEARNER');
   readonly displayName = computed(() => {
     const user = this.user();
     if (!user) return '';
@@ -98,6 +164,10 @@ export class AuthService {
           role: data.role,
           roles: data.roles ?? [],
           instructorId: data.instructorId ?? null,
+          fullAccess: !!data.fullAccess,
+          companyAdmin: !!data.companyAdmin,
+          permissions: this.toPermissionMap(data.permissions),
+          menus: data.menus ?? [],
         })!,
       })),
       tap((response) => {
@@ -119,6 +189,10 @@ export class AuthService {
           role: data.role,
           roles: data.roles ?? [],
           instructorId: data.instructorId ?? null,
+          fullAccess: !!data.fullAccess,
+          companyAdmin: !!data.companyAdmin,
+          permissions: this.toPermissionMap(data.permissions),
+          menus: data.menus ?? [],
         })!,
       ),
       tap({
@@ -133,6 +207,71 @@ export class AuthService {
         },
       }),
     );
+  }
+
+  /**
+   * Can the logged-in user do `action` on `featureId`? Menus, pages and buttons the role / package
+   * does not grant stay hidden. Reads the `user` signal, so it works inside computed() and templates.
+   *
+   * Only SUPER_ADMIN (fullAccess) bypasses the check - the company ADMIN is limited to the package.
+   */
+  can(featureId: string, action: AccessAction): boolean {
+    const user = this.user();
+    if (!user) return false;
+    if (user.fullAccess || user.role === 'SUPER_ADMIN') return true;
+    return !!user.permissions?.[featureId]?.[action];
+  }
+
+  /**
+   * Is the LEFT MENU entry of this category (e.g. MENU.COURSE) switched on for the user?
+   * Only the category switch counts here - the create / read / update / delete flags are checked
+   * separately with can() for the buttons inside the page.
+   */
+  hasMenu(categoryId: string): boolean {
+    const user = this.user();
+    if (!user) return false;
+    if (user.fullAccess || user.role === 'SUPER_ADMIN') return true;
+    return !!user.menus?.includes(categoryId);
+  }
+
+  /** True when the user satisfies AT LEAST ONE of the requirements. */
+  canAny(requirements: readonly AccessRequirement[]): boolean {
+    return requirements.some(([featureId, action]) => this.can(featureId, action));
+  }
+
+  /** GET /api/profile/permissions - re-reads the role's permissions without logging in again. */
+  refreshPermissions(): Observable<AuthUser | null> {
+    return this.http
+      .get<ApiResponse<PermissionsApiData>>(`${environment.apiBaseUrl}/api/profile/permissions`)
+      .pipe(
+        map(({ data }) => {
+          const current = this.user();
+          if (!current) return null;
+          const next: AuthUser = {
+            ...current,
+            fullAccess: !!data.fullAccess,
+            companyAdmin: !!data.companyAdmin,
+            permissions: this.toPermissionMap(data.permissions),
+            menus: data.menus ?? [],
+          };
+          this.tokenStorage.updateUser(next);
+          this.user.set(next);
+          return next;
+        }),
+      );
+  }
+
+  private toPermissionMap(rows: PermissionGrantApi[] | undefined): Record<string, PermissionFlags> {
+    const map: Record<string, PermissionFlags> = {};
+    for (const row of rows ?? []) {
+      map[row.featureId] = {
+        create: !!row.create,
+        read: !!row.read,
+        update: !!row.update,
+        delete: !!row.delete,
+      };
+    }
+    return map;
   }
 
   token(): string | null {
@@ -169,6 +308,19 @@ export class AuthService {
     });
   }
 
+  /** NEW - POST /api/auth/change-password (any logged-in user). */
+  changePassword(
+    currentPassword: string,
+    newPassword: string,
+    confirmPassword: string,
+  ): Observable<unknown> {
+    return this.http.post(`${this.apiUrl}/change-password`, {
+      currentPassword,
+      newPassword,
+      confirmPassword,
+    });
+  }
+
   /** GET /api/auth/signup/admins — User-table fields only (see PackageService for package fields). */
   listAdmins(query: AdminListQuery = {}): Observable<AdminPage> {
     let params = new HttpParams();
@@ -188,6 +340,11 @@ export class AuthService {
       ...user,
       roles: user.roles?.length ? user.roles : [this.toAuthority(user.role)],
       instructorId: user.instructorId ?? null,
+      // sessions saved before permissions existed have none of these fields
+      fullAccess: user.fullAccess ?? false,
+      companyAdmin: user.companyAdmin ?? user.role?.trim().toUpperCase() === 'ADMIN',
+      permissions: user.permissions ?? {},
+      menus: user.menus ?? [],
     };
   }
 

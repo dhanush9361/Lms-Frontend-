@@ -47,6 +47,20 @@ export class CourseManagementService {
       .pipe(map(res => res.data), catchError(this.handleError));
   }
 
+  /** Learner enrolls himself in a published course of his own organization. */
+  selfEnroll(courseId: number): Observable<Course> {
+    return this.http
+      .post<ApiResponse<Course>>(`${this.baseUrl}/${courseId}/self-enroll`, {})
+      .pipe(map(res => res.data), catchError(this.handleError));
+  }
+
+  /** NEW: learner leaves a course he enrolled in (the card goes back to "Enroll"). */
+  selfUnenroll(courseId: number): Observable<Course> {
+    return this.http
+      .delete<ApiResponse<Course>>(`${this.baseUrl}/${courseId}/self-enroll`)
+      .pipe(map(res => res.data), catchError(this.handleError));
+  }
+
   deleteCourse(courseId: number): Observable<void> {
     return this.http
       .delete<ApiResponse<void>>(`${this.baseUrl}/${courseId}`)

@@ -16,6 +16,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { finalize, take } from 'rxjs/operators';
 import { Router } from '@angular/router';
 import { environment } from '../../../environments/environment';
+import { AuthService, FEATURE } from '../../services/auth';
 import { Course } from '../course.model';
 import {
   Section,
@@ -68,11 +69,46 @@ export class OrganizeSections implements OnInit, AfterViewInit, OnDestroy {
   /** "Edit course" button on the banner -> parent opens its edit-course modal. */
   readonly editCourseRequested = output<void>();
 
+  private readonly auth = inject(AuthService);
   private readonly sectionService = inject(SectionManagementService);
 
   private readonly multimediaService = inject(MultimediaManagementService);
   private readonly questionBankService = inject(QuestionBankService);
   private readonly destroyRef = inject(DestroyRef);
+
+  // ---------- permissions (Admin -> package, other roles -> Role Management; the server enforces the same) ----------
+  /** Organize Modules: create = add section, update = edit / reorder, delete = remove section. */
+  protected readonly canAddSection = computed(() => this.auth.can(FEATURE.COURSE_ORGANIZE, 'create'));
+  protected readonly canEditSection = computed(() => this.auth.can(FEATURE.COURSE_ORGANIZE, 'update'));
+  protected readonly canDeleteSection = computed(() => this.auth.can(FEATURE.COURSE_ORGANIZE, 'delete'));
+  /** Add-activity menu entries. Question Bank is managed by whoever may update Organize Modules. */
+  protected readonly canAddEbook = computed(() => this.auth.can(FEATURE.EBOOK, 'create'));
+  protected readonly canAddMultimedia = computed(() => this.auth.can(FEATURE.MULTIMEDIA, 'create'));
+  protected readonly canAddQuestionBank = computed(() => this.auth.can(FEATURE.COURSE_ORGANIZE, 'update'));
+  protected readonly canAddActivity = computed(
+    () => this.canAddEbook() || this.canAddMultimedia() || this.canAddQuestionBank(),
+  );
+
+  /** Edit an activity (Ebook / Multimedia / Question Bank)? */
+  protected canEditActivity(kind: ActivityKind): boolean {
+    return this.auth.can(this.featureOf(kind), 'update');
+  }
+
+  /** Delete an activity (Ebook / Multimedia / Question Bank)? */
+  protected canDeleteActivity(kind: ActivityKind): boolean {
+    return this.auth.can(this.featureOf(kind), kind === 'Question Bank' ? 'update' : 'delete');
+  }
+
+  private featureOf(kind: ActivityKind): string {
+    switch (kind) {
+      case 'Ebook':
+        return FEATURE.EBOOK;
+      case 'Multimedia':
+        return FEATURE.MULTIMEDIA;
+      case 'Question Bank':
+        return FEATURE.COURSE_ORGANIZE;
+    }
+  }
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
 
   // ---------- page state ----------
@@ -129,6 +165,8 @@ export class OrganizeSections implements OnInit, AfterViewInit, OnDestroy {
 
   // ---------- activities ----------
   readonly activityMenuSectionId = signal<number | null>(null);
+  readonly ebookOpen = signal(false);
+readonly ebookSectionId = signal<number | null>(null);
   readonly draggedActivity = signal<{ sectionId: number; index: number } | null>(null);
   readonly activityDropTarget = signal<{ sectionId: number; index: number } | null>(null);
   private readonly noActivities: SectionActivity[] = [];
@@ -177,7 +215,6 @@ export class OrganizeSections implements OnInit, AfterViewInit, OnDestroy {
   readonly resourceDialog = signal<{ sectionId: number; resource: MultimediaResource | null } | null>(
     null,
   );
-  readonly ebookSectionId = signal<number | null>(null);
 
   private pendingRetry: (() => void) | null = null;
   private toastTimer: ReturnType<typeof setTimeout> | undefined;
@@ -661,14 +698,24 @@ export class OrganizeSections implements OnInit, AfterViewInit, OnDestroy {
       this.openResourceDialog(activity.kind, sectionId, activity);
     }
   }
+  openEbook(sectionId: number): void {
+    this.activityMenuSectionId.set(null);
+    this.ebookSectionId.set(sectionId);
+    this.ebookOpen.set(true);
+  }
+
+  closeEbook(): void {
+    this.ebookOpen.set(false);
+    this.ebookSectionId.set(null);
+  }
+
+
+
+
 
   /** Add Activity -> Multimedia opens the upload dialog; the pencil icon on a row opens it in edit mode. */
   openResourceDialog(kind: ActivityKind, sectionId: number, activity?: SectionActivity): void {
     this.activityMenuSectionId.set(null);
-    if (kind === 'Ebook') {
-      this.ebookSectionId.set(sectionId);
-      return;
-    }
     // the pencil icon of a Question Bank row opens that bank's editor
     if (kind === 'Question Bank') {
       if (activity) this.openQuestionBankList(sectionId, activity);
@@ -686,10 +733,6 @@ export class OrganizeSections implements OnInit, AfterViewInit, OnDestroy {
 
   closeResourceDialog(): void {
     this.resourceDialog.set(null);
-  }
-
-  closeEbookDialog(): void {
-    this.ebookSectionId.set(null);
   }
 
   /** <app-multimedia-upload> finished a successful upload / edit. */

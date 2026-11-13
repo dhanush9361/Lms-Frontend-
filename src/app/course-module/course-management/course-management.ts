@@ -20,7 +20,7 @@ import {
 } from '../course.model';
 import { CourseManagementService } from '../../services/course-management.service';
  
-import { AuthService } from '../../services/auth';
+import { AuthService, FEATURE } from '../../services/auth';
 import { environment } from '../../../environments/environment';
  
 type DropdownName = 'filter';
@@ -53,6 +53,10 @@ export class CourseManagement {
   readonly openCardMenuId = signal<number | null>(null);
   readonly successMessage = signal<string | null>(null);
   readonly permissionError = signal<string | null>(null);
+  /** NEW: id of the course whose "Enroll" button is currently waiting for the server. */
+  readonly enrollingCourseId = signal<number | null>(null);
+  /** NEW: id of the course whose "Unenroll" request is waiting for the server. */
+  readonly unenrollingCourseId = signal<number | null>(null);
  
   readonly filteredCourses = computed(() => {
     const term = this.search().trim().toLowerCase();
@@ -64,13 +68,29 @@ export class CourseManagement {
     });
   });
  
-  // ---------- role checks ----------
+  // ---------- permissions (set per role in Role Management; the server enforces the same rules) ----------
   readonly isAdmin = computed(() => this.authService.user()?.role === 'ADMIN');
-  readonly isLearner = computed(() => this.authService.user()?.role === 'LEARNER');
-  readonly canManage = computed(() => {
-    const role = this.authService.user()?.role;
-    return role === 'ADMIN' || role === 'INSTRUCTOR';
-  });
+  readonly canCreate = computed(() => this.authService.can(FEATURE.COURSE_CREATE, 'create'));
+  readonly canEdit = computed(() => this.authService.can(FEATURE.COURSE_CREATE, 'update'));
+  readonly canDelete = computed(() => this.authService.can(FEATURE.COURSE_CREATE, 'delete'));
+  readonly canOrganize = computed(() => this.authService.can(FEATURE.COURSE_ORGANIZE, 'update'));
+  readonly canSeeEnrollments = computed(() => this.authService.can(FEATURE.ENROLLED_LIST, 'read'));
+  /** Anything beyond looking at the list gives the admin-style cards. Mirrors CourseService.getVisibleCourses. */
+  readonly canManage = computed(
+    () => this.canCreate() || this.canEdit() || this.canDelete() || this.canOrganize(),
+  );
+  /** Read-only users (learners): only their enrolled courses, each with a "Start course" button. */
+  readonly isLearner = computed(() => !this.canManage());
+  /**
+   * Mirrors CourseService.getVisibleCourses: without "read" on Course List (and no manage rights) the API
+   * answers 403. The Course Management menu can be ON with every action OFF, so the list is then simply empty.
+   */
+  private readonly canViewList = computed(
+    () =>
+      this.authService.isLearner() ||
+      this.authService.can(FEATURE.COURSE_LIST, 'read') ||
+      this.canManage(),
+  );
  
   // ---------- organize (sections) state ----------
   // CHANGED: replaces the old contentEditorOpen / editorCourse pair.
@@ -105,6 +125,9 @@ export class CourseManagement {
     instructorId: [null as number | null, Validators.required],
     level: ['' as CourseLevel | '', Validators.required],
     status: ['' as CourseStatus | '', Validators.required],
+    // NEW: Free / Paid + price in USD. `paid` must stay BEFORE `price` (see the valueChanges handler in the constructor).
+    paid: [false],
+    price: [null as number | null],
   });
  
   // ---------- confirmation dialog state (delete / discard-unsaved-changes) ----------
@@ -112,6 +135,8 @@ export class CourseManagement {
   readonly confirmTitle = signal('');
   readonly confirmMessage = signal('');
   readonly deleteTarget = signal<Course | null>(null);
+  /** NEW: course the learner is about to leave (confirmation dialog). */
+  readonly unenrollTarget = signal<Course | null>(null);
  
   constructor() {
     // NEW: the URL is the source of truth for the Organize screen.
@@ -122,13 +147,36 @@ export class CourseManagement {
       untracked(() => this.organizingCourse.set(course));
     });
 
+    // NEW: price is only required (and must be > 0) while the course is Paid; Free clears it.
+    this.form.controls.paid.valueChanges.subscribe(paid => {
+      const price = this.form.controls.price;
+      if (paid) {
+        price.setValidators([Validators.required, Validators.min(0.01), Validators.max(99999999)]);
+      } else {
+        price.clearValidators();
+        price.setValue(null, { emitEvent: false });
+      }
+      price.updateValueAndValidity();
+    });
+
+    // Re-read the role's permissions so a change made by the admin shows up without logging in again.
+    this.authService.refreshPermissions().subscribe({
+      error: () => {
+        /* keep the permissions saved at login */
+      },
+    });
     this.loadCourses();
   }
- 
+
   // ---------- list loading ----------
   loadCourses(): void {
-    this.loading.set(true);
     this.loadError.set(null);
+    if (!this.canViewList()) {
+      this.courses.set([]);
+      this.loading.set(false);
+      return;
+    }
+    this.loading.set(true);
     this.courseManagementService.getAllCourses().subscribe({
       next: courses => {
         this.courses.set(courses);
@@ -214,7 +262,10 @@ export class CourseManagement {
    */
   editFromOrganize(): void {
     const course = this.organizingCourse();
-    if (course) this.openEditModal(course);
+    if (!course) return;
+    // a role without "update" on Create Course can look at the course, not change it
+    if (this.canEdit()) this.openEditModal(course);
+    else this.openViewModal(course);
   }
  
   // ---------- create / edit / view ----------
@@ -328,6 +379,7 @@ export class CourseManagement {
     this.submitting.set(true);
     this.formError.set(null);
  
+    const isPaid = !!this.form.value.paid;
     const request: CourseRequest = {
       name: this.form.value.name!.trim(),
       description: this.form.value.description || null,
@@ -335,6 +387,9 @@ export class CourseManagement {
       instructorId: this.form.value.instructorId!,
       level: this.form.value.level as CourseLevel,
       status: this.form.value.status as CourseStatus,
+      // NEW: a free course always sends price 0 (the backend enforces the same rule)
+      paid: isPaid,
+      price: isPaid ? Number(this.form.value.price) : 0,
     };
  
     const editing = this.editingCourse();
@@ -369,6 +424,7 @@ export class CourseManagement {
   requestClose(): void {
     if (this.form.dirty && !this.viewingCourse()) {
       this.deleteTarget.set(null);
+      this.unenrollTarget.set(null);
       this.confirmTitle.set('Discard unsaved changes?');
       this.confirmMessage.set('You have unsaved changes. Are you sure you want to close without saving?');
       this.confirmOpen.set(true);
@@ -394,6 +450,8 @@ export class CourseManagement {
       instructorId: null,
       level: '',
       status: '',
+      paid: false,
+      price: null,
     });
     this.form.markAsPristine();
   }
@@ -406,6 +464,9 @@ export class CourseManagement {
       instructorId: course.instructorId,
       level: course.level,
       status: course.status,
+      // NEW: a free course shows an empty price box
+      paid: course.paid,
+      price: course.paid ? course.price : null,
     });
     // FIXED: course.thumbnailUrl is a backend-relative path (e.g. "/uploads/thumbnails/x.png").
     // Feeding that straight into an <img> would resolve against the Angular app's own origin,
@@ -418,6 +479,7 @@ export class CourseManagement {
   // ---------- delete ----------
   requestDelete(course: Course): void {
     this.deleteTarget.set(course);
+    this.unenrollTarget.set(null);
     this.confirmTitle.set('Delete this course?');
     this.confirmMessage.set(`"${course.name}" will be permanently removed. This action cannot be undone.`);
     this.confirmOpen.set(true);
@@ -425,10 +487,19 @@ export class CourseManagement {
  
   answerConfirmation(confirmed: boolean): void {
     const target = this.deleteTarget();
+    const leaving = this.unenrollTarget();
     this.confirmOpen.set(false);
  
     if (!confirmed) {
       this.deleteTarget.set(null);
+      this.unenrollTarget.set(null);
+      return;
+    }
+
+    // NEW: learner confirmed "Unenroll"
+    if (leaving) {
+      this.unenrollTarget.set(null);
+      this.unenrollFromCourse(leaving);
       return;
     }
  
@@ -480,6 +551,34 @@ export class CourseManagement {
   courseStatusLabel(status: CourseStatus): string {
     return status.charAt(0) + status.slice(1).toLowerCase();
   }
+
+  /** NEW: "Paid $ 100" / "Free $ 0" pill text shown on the course card. */
+  priceLabel(course: Course): string {
+    return course.paid ? `Paid $ ${course.price}` : 'Free $ 0';
+  }
+
+  /** NEW: Paid = yellow, Free = green. */
+  priceBadgeClasses(course: Course): string {
+    return course.paid ? 'bg-amber-400' : 'bg-green-500';
+  }
+
+  /** NEW: Beginner = 1 dot, Intermediate = 2, Advanced = 3 (the green/white dots next to the level). */
+  levelDots(level: CourseLevel): number {
+    return level === 'ADVANCED' ? 3 : level === 'INTERMEDIATE' ? 2 : 1;
+  }
+
+  /** NEW: learner finished this course (backend sends enrollmentStatus = COMPLETED). */
+  isCompleted(course: Course): boolean {
+    return course.enrollmentStatus === 'COMPLETED';
+  }
+
+  /** NEW: colour of the bar under a card: teal = View / Enroll, blue = enrolled, purple = completed. */
+  cardBarClass(course: Course): string {
+    if (this.canManage()) return 'bg-[#61b7c5]';
+    if (this.isCompleted(course)) return 'bg-[#a15cf6]';
+    if (course.enrolled) return 'bg-[#6f84d9]';
+    return 'bg-[#61b7c5]';
+  }
  
   /**
    * NEW: background color for the status pill shown on the card (matches the Figma's
@@ -499,15 +598,65 @@ export class CourseManagement {
     return 'bg-slate-500';
   }
  
-  /**
-   * NEW: placeholder for the learner-facing "Enroll" action from the Figma. No enrollment
-   * API was shared yet (CourseManagementService only has CRUD + instructor lookup), so this
-   * currently just opens the view modal so the learner can still see the course details.
-   * TODO: replace the body with a real POST /api/courses/{id}/enroll call once that
-   * endpoint exists, and show a success/already-enrolled state instead of the view modal.
-   */
-  enrollCourse(course: Course): void {
-    this.openViewModal(course);
+  /** "Start course" on an ENROLLED learner's card: opens the course (sections -> content viewer). */
+  startCourse(course: Course): void {
+    try {
+      // the course page reads the course from here (same hand-over the Organize "Show Preview" uses)
+      sessionStorage.setItem(`course-preview:${course.id}`, JSON.stringify(course));
+    } catch {
+      // storage unavailable: the page still opens, it just cannot restore the course on refresh
+    }
+    void this.router.navigate(['/admin-dashboard', 'courses', course.id, 'preview']);
+  }
+
+  /** NEW: "Enroll" on a published course the learner is not enrolled in yet. The card then shows "Start course". */
+  enrollInCourse(course: Course): void {
+    if (this.enrollingCourseId() !== null) return;
+    this.enrollingCourseId.set(course.id);
+    this.permissionError.set(null);
+    this.courseManagementService.selfEnroll(course.id).subscribe({
+      next: () => {
+        this.courses.update(list =>
+          list.map(c => (c.id === course.id ? { ...c, enrolled: true, enrollmentStatus: 'NOT_STARTED' } : c)),
+        );
+        this.enrollingCourseId.set(null);
+        this.successMessage.set('Enrolled successfully. You can start the course now.');
+        setTimeout(() => this.successMessage.set(null), 4000);
+      },
+      error: (err: Error) => {
+        this.enrollingCourseId.set(null);
+        this.permissionError.set(err.message);
+      },
+    });
+  }
+
+  /** NEW: "Unenroll" on an enrolled learner's card -> ask first (progress is removed). */
+  requestUnenroll(course: Course): void {
+    this.deleteTarget.set(null);
+    this.unenrollTarget.set(course);
+    this.confirmTitle.set('Unenroll from this course?');
+    this.confirmMessage.set(`You will lose access to "${course.name}" and your progress in it will be removed.`);
+    this.confirmOpen.set(true);
+  }
+
+  private unenrollFromCourse(course: Course): void {
+    if (this.unenrollingCourseId() !== null) return;
+    this.unenrollingCourseId.set(course.id);
+    this.permissionError.set(null);
+    this.courseManagementService.selfUnenroll(course.id).subscribe({
+      next: () => {
+        this.courses.update(list =>
+          list.map(c => (c.id === course.id ? { ...c, enrolled: false, enrollmentStatus: null } : c)),
+        );
+        this.unenrollingCourseId.set(null);
+        this.successMessage.set('Unenrolled successfully.');
+        setTimeout(() => this.successMessage.set(null), 4000);
+      },
+      error: (err: Error) => {
+        this.unenrollingCourseId.set(null);
+        this.permissionError.set(err.message);
+      },
+    });
   }
  
   // ---------- out-of-scope entry points (other features, not part of the Create Course SRS) ----------

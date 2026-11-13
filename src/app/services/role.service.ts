@@ -1,5 +1,5 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { Injectable, inject } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 
@@ -26,6 +26,11 @@ export interface Category {
   features: Feature[];
 }
 
+/**
+ * Response of GET /api/roles/features.
+ * Only features that the logged-in admin's PACKAGE allows are returned, and
+ * feature.permissions holds the ALLOWED actions (not a selection).
+ */
 export interface FeatureCatalogEntry {
   categoryId: string;
   categoryName: string;
@@ -40,7 +45,17 @@ export interface Role {
   status: RoleStatus;
   createdAt: string;
   updatedAt: string;
+  /** Users who accepted an invite for this role (pending invites are not counted). */
   assignedUsers?: number;
+}
+
+/** One row of GET /api/roles/{id}/users. */
+export interface RoleUser {
+  /** null for an invite that has not been accepted yet. */
+  id: number | null;
+  name: string;
+  email: string;
+  status: 'Active' | 'Inactive' | 'Invited';
 }
 
 export interface RoleRequest {
@@ -59,7 +74,43 @@ export interface PermissionRow {
   category: string | null;
   featureId: string;
   name: string;
+  /** What the admin has switched on for this role. */
   values: Permission;
+  /** What the admin's package allows. A switch is usable only when allowed[action] is true. */
+  allowed: Permission;
+}
+
+/**
+ * Role Management switches between views inside ONE route (no URL change),
+ * so the header breadcrumb can't read them from the URL. RoleManagement
+ * publishes the current step here and AdminDashboard reads it.
+ *   null         -> role list
+ *   'permission' -> Role Permission screen (create / edit role)
+ *   'assign'     -> assigned users list of a role
+ */
+export type RolePageStep = 'permission' | 'assign' | null;
+
+@Injectable({ providedIn: 'root' })
+export class RolePageState {
+  readonly step = signal<RolePageStep>(null);
+
+  private backToListHandler: (() => void) | null = null;
+
+  /**
+   * RoleManagement registers HOW to return to the role list (it owns the real state).
+   * Returns an unregister function.
+   */
+  registerBackToList(handler: () => void): () => void {
+    this.backToListHandler = handler;
+    return () => {
+      if (this.backToListHandler === handler) this.backToListHandler = null;
+    };
+  }
+
+  /** Called by the header breadcrumb ("Role List" crumb). */
+  backToList(): void {
+    this.backToListHandler?.();
+  }
 }
 
 @Injectable({ providedIn: 'root' })
@@ -79,6 +130,11 @@ export class RoleService {
     return this.http.get<Role>(`${this.baseUrl}/${id}`);
   }
 
+  /** Users (and pending invites) of one role: the "View users" screen. */
+  getUsers(id: number): Observable<RoleUser[]> {
+    return this.http.get<RoleUser[]>(`${this.baseUrl}/${id}/users`);
+  }
+
   create(request: RoleRequest): Observable<Role> {
     return this.http.post<Role>(this.baseUrl, request);
   }
@@ -95,15 +151,12 @@ export class RoleService {
     return this.http.delete<void>(`${this.baseUrl}/${id}`);
   }
 
+  /** Package-filtered catalog for the logged-in admin (NOT the full system catalog). */
   getFeatureCatalog(): Observable<FeatureCatalogEntry[]> {
-    return this.http.get<FeatureCatalogEntry[]>(`${environment.apiBaseUrl}/api/packages/features`);
+    return this.http.get<FeatureCatalogEntry[]>(`${this.baseUrl}/features`);
   }
 
-  /**
-   * CHANGED: now hits the real /api/invites endpoint (InviteController) and
-   * sends roleId (a Long on the backend) instead of a free-text category
-   * name, matching InviteDto.SendRequest exactly.
-   */
+  /** POST /api/invites - matches InviteDto.SendRequest. */
   invite(payload: { email: string; roleId: number }): Observable<void> {
     return this.http.post<void>(`${environment.apiBaseUrl}/api/invites`, payload);
   }

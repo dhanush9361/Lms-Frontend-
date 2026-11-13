@@ -1,11 +1,13 @@
-import { ChangeDetectionStrategy, Component, HostListener, computed, inject, signal } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
+import { ChangeDetectionStrategy, Component, ElementRef, HostListener, computed, inject, signal, viewChild } from '@angular/core';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRouteSnapshot, NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { EMPTY, interval, timer } from 'rxjs';
 import { catchError, filter, map, startWith, switchMap } from 'rxjs/operators';
 
-import { AuthService } from '../../services/auth';
+import { AuthService,FEATURE } from '../../services/auth';
+import { ADMIN_MENU, isMenuVisible } from '../../config/admin-menu';
 import { PackageService } from '../../services/package.service';
+import { RolePageState } from '../../services/role.service';
 
 /** One item of the header breadcrumb. `link: null` = not clickable (current page or plain parent). */
 interface Breadcrumb {
@@ -15,6 +17,11 @@ interface Breadcrumb {
   queryParams?: Record<string, string>;
   /** true = plain text style (no pill), used for simple 2-level crumbs */
   plain?: boolean;
+  /**
+   * Click handler for crumbs that change in-page state instead of the URL
+   * (e.g. "Role List" while on Permission / Assign List, which all share /admin-dashboard/role).
+   */
+  action?: () => void;
 }
 
 @Component({
@@ -28,6 +35,30 @@ export class AdminDashboard {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
   private readonly packagesApi = inject(PackageService);
+  private readonly rolePageState = inject(RolePageState);
+
+  // ---------- sidebar menu (role / package based) ----------
+  /** Company's own ADMIN? (only they get Role Management, Subscription and the package countdown) */
+  readonly isCompanyAdmin = this.auth.isCompanyAdmin;
+
+  /**
+   * The menu items this user may see:
+   *  - Admin       -> Dashboard + Role + Subscription (always) + the menus their PACKAGE includes
+   *  - Instructor / Learner / any role -> Dashboard + only the menus their ROLE grants
+   * Recomputes by itself whenever the permissions change (see the refresh timer in the constructor).
+   */
+  readonly menuItems = computed(() => ADMIN_MENU.filter((item) => isMenuVisible(item, this.auth)));
+
+  constructor() {
+    // Package / role can change while the page is open (expiry, role edited by the admin):
+    // re-read the permissions every 5 minutes so menus update without logging in again.
+    timer(5 * 60_000, 5 * 60_000)
+      .pipe(
+        switchMap(() => this.auth.refreshPermissions().pipe(catchError(() => EMPTY))),
+        takeUntilDestroyed(),
+      )
+      .subscribe();
+  }
 
   // ---------- header: identity ----------
   // Single source of truth lives in AuthService (firstName + lastName, falls
@@ -52,15 +83,15 @@ export class AdminDashboard {
   /** Reads the admin's package expiry now and every 5 minutes (so an unassign / new assign shows without re-login). */
   private readonly subscription = toSignal(
     timer(0, 5 * 60_000).pipe(
-      switchMap(() =>
+      // Only the company ADMIN has a package of their own; the API rejects everyone else.
+      switchMap(() => (!this.isCompanyAdmin() ? EMPTY :
         this.packagesApi.getMySubscription().pipe(
           map((s) => ({ s, fetchedAt: Date.now() })),
           catchError((err) => {
-  console.error('my-subscription failed', err);
-  return EMPTY;
-}),
-        ),
-      ),
+            console.error('my-subscription failed', err);
+            return EMPTY;
+          }),
+        ))),
     ),
     { initialValue: null },
   );
@@ -114,8 +145,11 @@ export class AdminDashboard {
     const params = new URLSearchParams(query);
     const courseList = ['/admin-dashboard', 'courses'];
 
-    if (/^\/admin-dashboard\/courses\/?$/.test(path)) {
-      if (params.has('organize')) {
+    // Organize Modules is reachable two ways: /courses?organize=:id and /courses/:id/organize
+    const isOrganizeRoute = /^\/admin-dashboard\/courses\/\d+\/organize\/?$/.test(path);
+
+    if (isOrganizeRoute || /^\/admin-dashboard\/courses\/?$/.test(path)) {
+      if (isOrganizeRoute || params.has('organize')) {
         return [
           { label: 'Content Management', link: null, plain: true },
           { label: 'Course List', link: courseList, plain: true },
@@ -143,18 +177,23 @@ export class AdminDashboard {
       /^\/admin-dashboard\/courses\/(\d+)\/preview\/?$/.exec(path) ??
       /^\/admin-dashboard\/courses\/(\d+)\/sections\/\d+\/content\/?$/.exec(path);
     if (previewMatch) {
-      return [
-        { label: 'Content Management', link: null, plain: true },
-        { label: 'Course List', link: courseList, plain: true },
-        {
-          label: 'Organize Modules',
-          link: courseList,
-          queryParams: { organize: previewMatch[1] },
-          plain: true,
-        },
-        { label: 'Course Preview', link: null, plain: true },
-      ];
-    }
+  const crumbs: Breadcrumb[] = [
+    { label: 'Content Management', link: null, plain: true },
+    { label: 'Course List', link: courseList, plain: true },
+  ];
+  // "Organize Modules" only for roles that may open it (admin / instructor with Organize access).
+  // A learner opening "Start Course" must not see it.
+  if (this.auth.can(FEATURE.COURSE_ORGANIZE, 'update')) {
+    crumbs.push({
+      label: 'Organize Modules',
+      link: courseList,
+      queryParams: { organize: previewMatch[1] },
+      plain: true,
+    });
+  }
+  crumbs.push({ label: 'Course Preview', link: null, plain: true });
+  return crumbs;
+}
 
     // Question Bank page (any route under /admin-dashboard that contains "question-bank" / "questionbank").
     // Flow: Content Management > Course List > Organize Modules > Question Bank
@@ -174,6 +213,41 @@ export class AdminDashboard {
         { label: 'Question Bank', link: null, plain: true },
       ];
     }
+
+    if (/^\/admin-dashboard\/role\/?$/.test(path)) {
+      const step = this.rolePageState.step();
+      const crumbs: Breadcrumb[] = [
+        { label: 'Content Management', link: null, plain: true },
+        {
+          label: 'Role List',
+          link: null,
+          action: step ? () => this.rolePageState.backToList() : undefined,
+          plain: true,
+        },
+      ];
+      if (step === 'permission') crumbs.push({ label: 'Permission', link: null, plain: true });
+      if (step === 'assign') crumbs.push({ label: 'Assign List', link: null, plain: true });
+      return crumbs;
+    }
+
+    // Edit Profile (/admin-dashboard/edit-profile)
+    // Flow: Dashboard > Edit Profile > User Profile Management
+    if (/^\/admin-dashboard\/edit-profile\/?$/.test(path)) {
+      return [
+        { label: 'Dashboard', link: ['/admin-dashboard', 'admin-dashboard-home'], plain: true },
+        { label: 'Edit Profile', link: null, plain: true },
+        { label: 'User Profile Management', link: null, plain: true },
+      ];
+    }
+
+    // Change Password (/admin-dashboard/change-password)
+    // Flow: Dashboard > Change Password
+    if (/^\/admin-dashboard\/change-password\/?$/.test(path)) {
+      return [
+        { label: 'Dashboard', link: ['/admin-dashboard', 'admin-dashboard-home'], plain: true },
+        { label: 'Change Password', link: null, plain: true },
+      ];
+    }
     return [];
   });
 
@@ -191,9 +265,14 @@ export class AdminDashboard {
 
   // ---------- header: account dropdown ----------
   readonly accountMenuOpen = signal(false);
+  private readonly accountMenu = viewChild<ElementRef<HTMLElement>>('accountMenu');
 
-  @HostListener('document:click')
-  closeAccountMenu(): void {
+  @HostListener('document:click', ['$event'])
+  closeAccountMenu(event: MouseEvent): void {
+    if (!this.accountMenuOpen()) return;
+    const menu = this.accountMenu()?.nativeElement;
+    // Click inside the account wrapper (toggle button / menu items) is handled by its own handlers.
+    if (menu && event.composedPath().includes(menu)) return;
     this.accountMenuOpen.set(false);
   }
 

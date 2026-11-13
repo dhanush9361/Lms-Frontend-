@@ -20,6 +20,7 @@ import {
 import { ActivatedRoute, Router } from '@angular/router';
 import { TimeoutError, finalize, timeout } from 'rxjs';
 import { AuthService } from '../../services/auth';
+import { homeRouteFor } from '../../guards/role.guard';
 import { InviteService, getInviteErrorMessage } from '../../services/invite.service';
 import { DOCUMENT, NgTemplateOutlet } from '@angular/common';
 
@@ -55,12 +56,6 @@ const PHONE_LENGTHS_BY_COUNTRY_CODE: Readonly<Record<string, readonly [number, n
 };
 
 const COUNTRY_CODES = Object.keys(PHONE_LENGTHS_BY_COUNTRY_CODE);
-
-const HOME_ROUTE_BY_ROLE: Readonly<Record<string, string>> = {
-  SUPER_ADMIN: '/super-admin-dashboard',
-  ADMIN: '/admin-dashboard',
-};
-const DEFAULT_HOME_ROUTE = '/courses';
 
 // Forgot-password settings (moved here from the old standalone page)
 const RESEND_COOLDOWN_SECONDS = 30;
@@ -120,6 +115,17 @@ const passwordDiffersFromEmailValidator: ValidatorFn = (
   const email = String(group.get('email')?.value ?? '').toLowerCase();
   const password = String(group.get('password')?.value ?? '').toLowerCase();
   return email && password && email === password ? { passwordMatchesEmail: true } : null;
+};
+
+/** local@domain.tld - domain needs a dot and the TLD needs 2+ letters (rejects "name@gmail.c" and "a@b"). */
+const EMAIL_PATTERN =
+  /^[A-Za-z0-9._%+-]+@(?:[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?\.)+[A-Za-z]{2,}$/;
+
+/** Replacement for Validators.email; same `{ email: true }` error key. */
+const strictEmailValidator: ValidatorFn = (control: AbstractControl): ValidationErrors | null => {
+  const value = String(control.value ?? '').trim();
+  if (!value) return null; // empty is handled by Validators.required
+  return EMAIL_PATTERN.test(value) ? null : { email: true };
 };
 
 const phoneNumberValidator: ValidatorFn = (control: AbstractControl): ValidationErrors | null => {
@@ -202,7 +208,7 @@ export class LoginSignup {
   protected readonly loginForm = new FormGroup({
     email: new FormControl('', {
       nonNullable: true,
-      validators: [Validators.required, Validators.email, Validators.maxLength(LIMITS.loginEmail)],
+      validators: [Validators.required, strictEmailValidator, Validators.maxLength(LIMITS.loginEmail)],
     }),
     password: new FormControl('', {
       nonNullable: true,
@@ -218,7 +224,7 @@ export class LoginSignup {
   protected readonly forgotForm = new FormGroup({
     email: new FormControl('', {
       nonNullable: true,
-      validators: [Validators.required, Validators.email, Validators.maxLength(254)],
+      validators: [Validators.required, strictEmailValidator, Validators.maxLength(254)],
     }),
   });
 
@@ -243,7 +249,11 @@ export class LoginSignup {
       }),
       email: new FormControl('', {
         nonNullable: true,
-        validators: [Validators.required, Validators.email, Validators.maxLength(LIMITS.signupEmail)],
+        validators: [
+          Validators.required,
+          strictEmailValidator,
+          Validators.maxLength(LIMITS.signupEmail),
+        ],
       }),
       countryCode: new FormControl('', {
         nonNullable: true,
@@ -345,7 +355,7 @@ export class LoginSignup {
       }
       case 'email':
         if (errors['maxlength']) return `Email ID must not exceed ${LIMITS.signupEmail} characters.`;
-        return 'Enter a valid email address.';
+        return 'Enter a valid email address (e.g. name@example.com).';
       case 'phoneNumber':
         if (errors['phoneFormat']) return 'Enter a valid phone number.';
         if (errors['phoneLength']) {
@@ -527,7 +537,7 @@ export class LoginSignup {
       )
       .subscribe({
         next: ({ user }) => {
-          void this.router.navigate([HOME_ROUTE_BY_ROLE[user.role] ?? DEFAULT_HOME_ROUTE]);
+          void this.router.navigate([homeRouteFor(user)]);
         },
         error: (error: HttpErrorResponse) => this.loginError.set(this.toLoginMessage(error)),
       });

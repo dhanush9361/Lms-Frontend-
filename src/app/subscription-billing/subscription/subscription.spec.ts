@@ -1,17 +1,17 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
-import { AssignPackageModal } from './assign-package-modal';
+import { Subscription } from './subscription';
 
-describe('AssignPackageModal', () => {
-  let component: AssignPackageModal;
-  let fixture: ComponentFixture<AssignPackageModal>;
+describe('Subscription', () => {
+  let component: Subscription;
+  let fixture: ComponentFixture<Subscription>;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [AssignPackageModal],
+      imports: [Subscription],
     }).compileComponents();
 
-    fixture = TestBed.createComponent(AssignPackageModal);
+    fixture = TestBed.createComponent(Subscription);
     component = fixture.componentInstance;
     await fixture.whenStable();
   });

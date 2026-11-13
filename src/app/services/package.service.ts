@@ -39,6 +39,13 @@ export function isSingleToggleFeature(featureId: string): boolean {
   return SINGLE_TOGGLE_FEATURE_IDS.has(featureId);
 }
 
+/**
+ * Categories that have no Create/Read/Update/Delete meaning (Authentication = just login access).
+ * Their category switch also sets every flag of the (hidden) feature.
+ * For every other category the switch ONLY decides whether the left menu is shown.
+ */
+export const TOGGLE_ONLY_CATEGORY_IDS: ReadonlySet<string> = new Set(['AUTHENTICATION']);
+
 export interface PackagePermissionFeature {
   id: string;
   name: string;
@@ -119,9 +126,59 @@ export interface MySubscription {
   serverTime: string;
 }
 
+/** Billing form values sent together with the purchase (saved for Manage Details -> Billing Details). */
+export interface BillingInfoPayload {
+  firstName: string;
+  lastName: string;
+  companyName: string;
+  email: string;
+  address: string;
+  city: string;
+  postalCode: string;
+  state: string;
+  country: string;
+  vatNumber?: string;
+}
+
+/** GET /api/packages/my-billing. Every field null = nothing saved yet. */
+export interface MyBilling {
+  billingName: string | null;
+  companyName: string | null;
+  email: string | null;
+  address: string | null;
+  city: string | null;
+  state: string | null;
+  postalCode: string | null;
+  country: string | null;
+  vatNumber: string | null;
+}
+
+/** Body of POST /api/packages/purchase. Card data is only validated by the server, never stored. */
+export interface PackagePurchasePayload {
+  packageId: number;
+  cardNumber: string;
+  expiry: string;
+  cvc: string;
+  otp: string;
+  billing: BillingInfoPayload;
+}
+
 export interface UserPackageAssignment {
   emailId: string;
   packageId: number;
+}
+
+/**
+ * One day of permanent revenue (GET /api/packages/revenue).
+ * Comes from the package_purchases ledger, so it survives expiry / unassign / delete.
+ */
+export interface RevenuePoint {
+  /** yyyy-MM-dd */
+  date: string;
+  /** Total price of every package assigned on that date. */
+  amount: number;
+  /** How many packages were assigned on that date. */
+  count: number;
 }
 
 // ---------------------------------------------------------------------
@@ -186,19 +243,34 @@ export class PackageService {
     return this.http.post<void>(`${this.baseUrl}/assign`, payload);
   }
 
+  /** Company admin buys a package for themselves. The server checks the package, price and payment. */
+  purchase(payload: PackagePurchasePayload): Observable<MySubscription> {
+    return this.http.post<MySubscription>(`${this.baseUrl}/purchase`, payload);
+  }
+
   /** Assigned / expiry dates of the admins on a package (Super Admin only). */
   getAssignments(packageId: number): Observable<PackageAdminAssignment[]> {
     return this.http.get<PackageAdminAssignment[]>(`${this.baseUrl}/${packageId}/admins`);
   }
 
-  /** The logged-in admin's own package expiry, for the header "days left" pill. */
+  /** The logged-in admin's own package expiry, for the header "days left" pill and Manage Details. */
   getMySubscription(): Observable<MySubscription> {
     return this.http.get<MySubscription>(`${this.baseUrl}/my-subscription`);
+  }
+
+  /** Billing details the logged-in admin entered when subscribing (Manage Details -> Billing Details). */
+  getMyBilling(): Observable<MyBilling> {
+    return this.http.get<MyBilling>(`${this.baseUrl}/my-billing`);
   }
 
   /** Removes the package from one admin (Super Admin only). */
   unassignFromUser(packageId: number, userId: number): Observable<void> {
     return this.http.delete<void>(`${this.baseUrl}/${packageId}/admins/${userId}`);
+  }
+
+  /** Permanent daily revenue for the Super Admin dashboard chart (Super Admin only). */
+  getRevenue(): Observable<RevenuePoint[]> {
+    return this.http.get<RevenuePoint[]>(`${this.baseUrl}/revenue`);
   }
 }
 
@@ -230,8 +302,10 @@ export class PackageDraftService {
    
   setSeedCategories(categories: PackagePermissionCategory[]): void {
     const saved = new Map<string, Record<PermissionAction, boolean>>();
+    const savedEnabled = new Map<string, boolean>();
     if (this._editingPackageId() !== null) {
       for (const category of this._categories()) {
+        savedEnabled.set(category.id, category.enabled);
         for (const feature of category.features) {
           saved.set(`${category.id}:${feature.id}`, feature.permissions);
         }
@@ -249,10 +323,11 @@ export class PackageDraftService {
               : { create: false, read: false, update: false, delete: false },
           };
         });
+        // The category switch (left menu) is its own value: it is NOT derived from the actions below it.
         return {
           ...category,
           features,
-          enabled: features.some((f) => Object.values(f.permissions).some(Boolean)),
+          enabled: savedEnabled.get(category.id) ?? false,
         };
       }),
     );
@@ -303,19 +378,29 @@ export class PackageDraftService {
           }
           return { ...feature, permissions: { ...feature.permissions, [action]: !feature.permissions[action] } };
         });
-        return { ...category, enabled: features.some((f) => Object.values(f.permissions).some(Boolean)), features };
+        // Toggle-only categories (Authentication) follow their flags; for every other category the
+        // switch is independent: turning an action on/off never changes the left-menu switch.
+        const enabled = TOGGLE_ONLY_CATEGORY_IDS.has(category.id)
+          ? features.some((f) => Object.values(f.permissions).some(Boolean))
+          : category.enabled;
+        return { ...category, enabled, features };
       }),
     );
   }
 
   /**
-   * Category header switch: if every permission in the category is already on,
-   * turn all off; otherwise turn all on.
+   * Category header switch.
+   * - Toggle-only category (Authentication): all flags follow the switch.
+   * - Every other category (e.g. Course Management): flips ONLY the left-menu switch. The
+   *   create / read / update / delete flags of its features are left untouched.
    */
   toggleCategory(categoryId: string): void {
     this._categories.update((categories) =>
       categories.map((category) => {
         if (category.id !== categoryId) return category;
+        if (!TOGGLE_ONLY_CATEGORY_IDS.has(category.id)) {
+          return { ...category, enabled: !category.enabled };
+        }
         const next = !category.features.every((f) => Object.values(f.permissions).every(Boolean));
         const features = category.features.map((f) => ({
           ...f,
@@ -328,6 +413,7 @@ export class PackageDraftService {
 
   hasAnyPermissionEnabled(): boolean {
     return this._categories().some((category) =>
+      category.enabled ||
       category.features.some((feature) => Object.values(feature.permissions).some(Boolean)));
   }
 
