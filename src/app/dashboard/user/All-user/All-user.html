@@ -9,20 +9,50 @@
       </p>
     </div>
 
-    <label class="relative">
-      <span class="sr-only">Bulk Users actions</span>
-      <select id="bulk-user-actions"
-              class="h-10 min-w-40 appearance-none rounded-full border border-neutral-200 bg-white py-2 pl-4 pr-10 text-xs font-medium text-[#454545] outline-none transition hover:border-[#62b9c8] focus-visible:ring-2 focus-visible:ring-[#61b7c5]/60"
-              (change)="onBulkActionChange($event)">
-        <option value="" selected>Bulk Users</option>
-        @for (action of actions; track action.id) {
-          <option [value]="action.id">{{ action.label }}</option>
-        }
-      </select>
-      <svg viewBox="0 0 24 24" class="pointer-events-none absolute right-3 top-1/2 size-3 -translate-y-1/2 fill-none stroke-[#555]" stroke-width="2" aria-hidden="true">
-        <path d="m7 10 5 5 5-5" />
-      </svg>
-    </label >
+   
+
+<div class="relative z-30 h-10 w-[180px]" (click)="$event.stopPropagation()">
+
+  <div
+    class="dd-clip"
+    [class.dd-open]="bulkActionDropdownOpen()"
+    [class.dd-closing]="bulkActionDropdownUsed() && !bulkActionDropdownOpen()"
+    [attr.inert]="bulkActionDropdownOpen() ? null : ''"
+    [attr.aria-hidden]="!bulkActionDropdownOpen()"
+    role="menu"
+  >
+    <div class="dd-panel">
+      <div class="dd-spacer" aria-hidden="true"></div>
+
+      @for (action of actions; track action.id; let i = $index) {
+        <button
+          type="button"
+          role="menuitem"
+          class="dd-item"
+          [style.--i]="i"
+          [style.--r]="actions.length - 1 - i"
+          (click)="selectBulkAction(action)"
+        >
+          {{ action.label }}
+        </button>
+      }
+    </div>
+  </div>
+
+  <button
+    type="button"
+    class="relative z-10 flex h-10 w-full items-center justify-center gap-2 rounded-[20px] border-0 bg-white px-4 text-xs font-medium text-[#555] shadow-sm outline-none transition hover:shadow-md"
+    aria-label="Bulk Users"
+    aria-haspopup="menu"
+    [attr.aria-expanded]="bulkActionDropdownOpen()"
+    (click)="toggleBulkActionDropdown()"
+  >
+    <span>Bulk Users</span>
+  </button>
+
+</div>
+
+
   </header>
 
   @if (feedback(); as message) {
@@ -224,7 +254,7 @@
   @if (userEditDraft(); as draft) {
    <div class="fixed inset-0 z-50 grid place-items-center bg-black/35 p-4 backdrop-blur-[2px]">
       <section
-  class="relative w-[min(100%-2rem,100rem)] rounded-xl bg-white px-6 pb-7 pt-7 shadow-[0_12px_35px_rgba(0,0,0,.2)] sm:px-8 sm:pb-8"
+  class="relative w-[min(100%-2rem,36rem)] rounded-xl bg-white px-6 pb-7 pt-7 shadow-[0_12px_35px_rgba(0,0,0,.2)] sm:px-8 sm:pb-8"
   role="dialog"
   aria-modal="true"
   [attr.aria-label]="'User Settings for ' + draft.user.username"

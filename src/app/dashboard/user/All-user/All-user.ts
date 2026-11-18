@@ -52,6 +52,8 @@ export class BulkUser implements OnInit {
   ];
 
   protected readonly activeAction = signal<BulkAction | null>(null);
+  protected readonly bulkActionDropdownOpen = signal(false);
+  protected readonly bulkActionDropdownUsed = signal(false);
   protected readonly users = signal<ManagedUser[]>([]);
   protected readonly filteredUsers = computed(() => {
     const query = this.searchTerm().trim().toLocaleLowerCase();
@@ -122,7 +124,15 @@ protected loadUsers(): void {
       return next;
     });
   }
+protected toggleBulkActionDropdown(): void {
+  this.bulkActionDropdownUsed.set(true);
+  this.bulkActionDropdownOpen.update(open => !open);
+}
 
+protected selectBulkAction(action: BulkAction): void {
+  this.bulkActionDropdownOpen.set(false);
+  this.openAction(action);
+}
   protected onBulkActionChange(event: Event): void {
     const select = event.target as HTMLSelectElement;
     const action = this.actions.find(item => item.id === select.value);
