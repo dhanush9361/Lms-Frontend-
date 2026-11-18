@@ -1,6 +1,6 @@
 import { AccessRequirement, AuthService, FEATURE, MENU } from '../services/auth';
 
-export type MenuIcon = 'dashboard' | 'role' | 'course' | 'certificate' | 'subscription';
+export type MenuIcon = 'dashboard' | 'role' | 'course' | 'certificate' | 'subscription' | 'user';
 
 
 export type MenuAccess =
@@ -9,6 +9,7 @@ export type MenuAccess =
   /** Learner dashboard home: learners only. */
   | { readonly type: 'learnerHome' }
   | { readonly type: 'companyAdmin' }
+  | { readonly type: 'adminOnly' }
   /** Shown when the category switch (e.g. Course Management) is ON - the create/read/update/delete flags do not matter. */
   | { readonly type: 'menu'; readonly categoryId: string }
   | { readonly type: 'feature'; readonly anyOf: readonly AccessRequirement[] };
@@ -60,6 +61,16 @@ export const ADMIN_MENU: readonly AdminMenuItem[] = [
     icon: 'role',
     access: { type: 'companyAdmin' },
   },
+
+
+  {
+  id: 'user',
+  label: 'User',
+  title: 'User Management',
+  route: 'user',
+  icon: 'user',
+  access: { type: 'adminOnly' },
+},
   {
     id: 'course',
     label: 'Course',
@@ -96,6 +107,8 @@ export function isMenuVisible(item: AdminMenuItem, auth: AuthService): boolean {
       return auth.isLearner();
     case 'companyAdmin':
       return auth.isCompanyAdmin();
+      case 'adminOnly':
+  return auth.user()?.role?.trim().toUpperCase() === 'ADMIN';
     case 'menu':
       return auth.hasMenu(item.access.categoryId);
     case 'feature':

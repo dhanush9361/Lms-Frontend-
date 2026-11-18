@@ -59,6 +59,13 @@ export const routes: Routes = [
         },
 
 
+        {
+  path: 'user',
+  loadComponent: () =>
+    import('./dashboard/user/user').then(m => m.User)
+},
+
+
       { path: '', redirectTo: 'package', pathMatch: 'full' },
       {
         path: 'package',
@@ -126,6 +133,17 @@ export const routes: Routes = [
           ),
         title: 'Role Management',
       },
+
+// User Management - ADMIN role only
+{
+  path: 'user',
+  canActivate: [roleGuard('ADMIN')],
+  loadComponent: () =>
+    import('./dashboard/user/user').then((m) => m.User),
+  title: 'User Management',
+},
+
+
 
       {
   path: 'certificate-template',
